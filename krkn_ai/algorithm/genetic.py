@@ -316,7 +316,7 @@ class GeneticAlgorithm:
             config_data = self.config.model_dump(mode='json')
             yaml.dump(config_data, f, sort_keys=False)
 
-    def save_log_file(self, command_result: CommandRunResult, log_data: str):
+    def save_log_file(self, command_result: CommandRunResult):
         dir_path = os.path.join(self.output_dir, 'logs')
         os.makedirs(dir_path, exist_ok=True)
         # Store log file in output directory under a "logs" folder.
@@ -326,7 +326,7 @@ class GeneticAlgorithm:
         )
         log_save_path = os.path.join(dir_path, log_filename)
         with open(log_save_path, 'w', encoding='utf-8') as f:
-            f.write(log_data)
+            f.write(command_result.log)
         return log_save_path
 
     def save_scenario_result(self, fitness_result: CommandRunResult):
@@ -338,10 +338,7 @@ class GeneticAlgorithm:
         result['job_id'] = fitness_result.scenario_id
 
         # Store log in a log file and update log location
-        result['log'] = self.save_log_file(
-            fitness_result,
-            result['log']
-        )
+        result['log'] = self.save_log_file(fitness_result)
         # Convert timestamps to ISO string
         result['start_time'] = (result['start_time']).isoformat()
         result['end_time'] = (result['end_time']).isoformat()
