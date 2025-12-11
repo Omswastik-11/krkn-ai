@@ -1,6 +1,7 @@
 import os
 import copy
 import json
+import time
 from typing_extensions import Dict
 import yaml
 from typing import List, Tuple
@@ -67,7 +68,35 @@ class GeneticAlgorithm:
         # Initial population (Gen 0)
         self.population = self.create_population(self.config.population_size)
 
-        for i in range(self.config.generations):
+        # Track start time if duration is set
+        start_time = None
+        if self.config.duration is not None:
+            start_time = time.time()
+            logger.info("Running algorithm with duration-based control: %d seconds", self.config.duration)
+            if self.config.generations is not None:
+                logger.info("Note: generations parameter (%d) will be ignored in favor of duration", self.config.generations)
+        else:
+            logger.info("Running algorithm with generation-based control: %d generations", self.config.generations)
+
+        # If duration is set, we'll use a while True loop and check duration inside.Otherwise, use the configured generations
+        use_duration_mode = self.config.duration is not None
+        max_generations = self.config.generations if not use_duration_mode else None
+
+        i = 0
+        while True:
+            # Check generation limit if not using duration mode
+            if not use_duration_mode and i >= max_generations:
+                break
+            # Check if duration has been exceeded
+            if self.config.duration is not None and start_time is not None:
+                elapsed_time = time.time() - start_time
+                if elapsed_time >= self.config.duration:
+                    logger.info("Duration limit reached (%d seconds). Stopping algorithm.", self.config.duration)
+                    logger.info("Completed %d generations in %.2f seconds", i, elapsed_time)
+                    break
+                remaining_time = self.config.duration - elapsed_time
+                logger.debug("Elapsed time: %.2f seconds, Remaining: %.2f seconds", elapsed_time, remaining_time)
+
             if len(self.population) == 0:
                 logger.warning("No more population found, stopping generations.")
                 break
@@ -125,6 +154,8 @@ class GeneticAlgorithm:
             # Inject random members to population to diversify scenarios
             if rng.random() < self.config.population_injection_rate:
                 self.population.extend(self.create_population(self.config.population_injection_size))
+
+            i += 1
 
     def create_population(self, population_size) -> List[BaseScenario]:
         """Generate random population for algorithm"""

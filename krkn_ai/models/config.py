@@ -159,8 +159,9 @@ class ConfigFile(BaseModel):
     kubeconfig_file_path: str  # Path to kubeconfig
     parameters: Dict[str, str] = {}
 
-    generations: int = 20  # Total number of generations to run.
+    generations: Optional[int] = 20  # Total number of generations to run. Ignored if duration is set.
     population_size: int = 10  # Initial population size
+    duration: Optional[int] = None  # Maximum duration in seconds to run the algorithm. When set, generations is ignored and algorithm runs until duration is reached.
 
     wait_duration: int = const.WAIT_DURATION  # Time to wait after each scenario run (Default: 120 seconds)
 
