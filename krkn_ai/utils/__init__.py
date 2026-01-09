@@ -18,9 +18,10 @@ def run_shell(command, do_not_log=False):
     '''
     Run shell command and get logs and statuscode in output.
     '''
-    logger.debug("Running command: %s", command)
     logs = ""
     command = shlex.split(command)
+    # Let's show the command name being executed
+    logger.debug("Running command: %s", command[0])
     process = subprocess.Popen(
         command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
     )

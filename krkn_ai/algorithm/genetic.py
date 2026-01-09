@@ -2,6 +2,7 @@ import os
 import copy
 import json
 import time
+import uuid
 from typing_extensions import Dict
 import yaml
 from typing import List, Tuple
@@ -19,6 +20,7 @@ from krkn_ai.chaos_engines.krkn_runner import KrknRunner
 from krkn_ai.utils.rng import rng
 from krkn_ai.models.custom_errors import PopulationSizeError, UniqueScenariosError
 from krkn_ai.utils.output import format_result_filename, format_duration
+from krkn_ai.utils.elastic_client import ElasticSearchClient
 
 logger = get_logger(__name__)
 
@@ -49,6 +51,11 @@ class GeneticAlgorithm:
 
         self.health_check_reporter = HealthCheckReporter(self.output_dir, self.config.output)
         self.generations_reporter = GenerationsReporter(self.output_dir, self.format)
+        self.elastic_client = ElasticSearchClient(self.config.elastic)
+        
+        # Generate unique run UUID for this experiment
+        self.run_uuid = str(uuid.uuid4())
+        logger.info("Krkn-AI run UUID: %s", self.run_uuid)
 
         if self.config.population_size < 2:
             raise PopulationSizeError("Population size should be at least 2")
@@ -59,10 +66,12 @@ class GeneticAlgorithm:
             self.config.population_size += 1
 
         self.save_config()
+        self.elastic_client.index_config(self.config, self.run_uuid)
 
-        logger.debug("CONFIG")
-        logger.debug("--------------------------------------------------------")
-        logger.debug("%s", json.dumps(self.config.model_dump(), indent=2))
+        # For debugging configuration
+        # logger.debug("CONFIG")
+        # logger.debug("--------------------------------------------------------")
+        # logger.debug("%s", json.dumps(self.config.model_dump(), indent=2))
 
     def simulate(self):
         # Initial population (Gen 0)
@@ -203,6 +212,8 @@ class GeneticAlgorithm:
         self.save_scenario_result(scenario_result)
         self.health_check_reporter.plot_report(scenario_result)
         self.health_check_reporter.write_fitness_result(scenario_result)
+        self.elastic_client.index_run_result(scenario_result, self.run_uuid)
+
         return scenario_result
 
     def mutate(self, scenario: BaseScenario):
@@ -360,6 +371,9 @@ class GeneticAlgorithm:
         self.generations_reporter.save_best_generation_graph(self.best_of_generation)
         self.health_check_reporter.save_report(self.seen_population.values())
         self.health_check_reporter.sort_fitness_result_csv()
+
+        # TODO: Send run summary to Elasticsearch
+        
 
     def save_config(self):
         logger.info("Saving config file to config.yaml")

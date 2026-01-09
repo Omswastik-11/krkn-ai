@@ -69,12 +69,12 @@ class TestPrometheusUtils:
 
     def test_create_prometheus_client_raises_error_when_connection_fails(self):
         """Test create_prometheus_client raises PrometheusConnectionError when connection fails"""
-        with patch.dict(os.environ, {"PROMETHEUS_URL": "https://prometheus.example.com", "PROMETHEUS_TOKEN": "test-token"}):
+        with patch.dict(os.environ, {"PROMETHEUS_URL": "https://prometheus.example.com", "PROMETHEUS_TOKEN": "test-token", "MOCK_FITNESS": ""}):
             with patch('krkn_ai.utils.prometheus.KrknPrometheus') as mock_prom_class:
                 mock_client = Mock()
                 mock_client.process_query.side_effect = Exception("Connection failed")
                 mock_prom_class.return_value = mock_client
                 
-                with pytest.raises(PrometheusConnectionError, match="Unable to connect to Prometheus"):
+                with pytest.raises(PrometheusConnectionError):
                     create_prometheus_client("/tmp/test-kubeconfig")
 

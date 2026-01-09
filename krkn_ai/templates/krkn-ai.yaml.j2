@@ -13,6 +13,18 @@ output:
   graph_name_fmt: "scenario_%s.png"
   log_name_fmt: "scenario_%s.log"
 
+
+# Elasticsearch configuration for storing run results
+elastic:
+  enable: false  # Set to true to enable Elasticsearch integration
+  verify_certs: true  # Verify SSL certificates
+  server: "http://localhost"  # Elasticsearch URL
+  port: 9200  # Elasticsearch port
+  username: "$ES_USER"  # Elasticsearch username
+  password: "$__ES_PASSWORD"  # Elasticsearch password (start param with __ to treat as private)
+  index: "krkn-ai"  # Index prefix for storing Krkn-AI config and results
+
+
 fitness_function: 
   query: 'sum(kube_pod_container_status_restarts_total)'
   type: point

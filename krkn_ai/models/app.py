@@ -1,7 +1,7 @@
 import logging
 import datetime
 from enum import Enum
-from typing import Dict, List
+from typing import Dict, List, Optional
 from dataclasses import dataclass
 from pydantic import BaseModel, Field
 
@@ -42,6 +42,7 @@ class CommandRunResult(BaseModel):
     end_time: datetime.datetime     # End date timestamp of the test
     fitness_result: FitnessResult   # Fitness result measured for scenario.
     health_check_results: Dict[str, List[HealthCheckResult]] = {}
+    run_uuid: Optional[str] = None         # Unique identifier generated from krkn engine during scenario execution
 
 
 class KrknRunnerType(str, Enum):

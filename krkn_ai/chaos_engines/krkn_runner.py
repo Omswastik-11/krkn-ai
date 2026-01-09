@@ -3,6 +3,8 @@ import json
 import datetime
 import tempfile
 import time
+from typing import Optional, Tuple
+from unittest import runner
 
 from krkn_lib.prometheus.krkn_prometheus import KrknPrometheus
 from krkn_ai.chaos_engines.health_check_watcher import HealthCheckWatcher
@@ -21,9 +23,13 @@ logger = get_logger(__name__)
 
 # TODO: Cleanup of temp kubeconfig after running the script
 
-PODMAN_TEMPLATE = 'podman run --env-host=true -e PUBLISH_KRAKEN_STATUS="False" -e TELEMETRY_PROMETHEUS_BACKUP="False" -e WAIT_DURATION={wait_duration} {env_list} --net=host -v {kubeconfig}:/home/krkn/.kube/config:Z {image}'
+PODMAN_TEMPLATE = 'podman run --env-host=true -e PUBLISH_KRAKEN_STATUS="False" -e TELEMETRY_PROMETHEUS_BACKUP="False" -e WAIT_DURATION={wait_duration} {env_list} {{es_env_list}} --net=host -v {kubeconfig}:/home/krkn/.kube/config:Z {image}'
 
-KRKNCTL_TEMPLATE = "krknctl run {name} --telemetry-prometheus-backup False --wait-duration {wait_duration} --kubeconfig {kubeconfig} {env_list}"
+PODMAN_ES_TEMPLATE = ' -e ENABLE_ES="True" -e ES_SERVER="{server}" -e ES_PORT="{port}" -e ES_USERNAME="{username}" -e ES_PASSWORD="{password}" -e ES_VERIFY_CERTS="{verify_certs}" '
+
+KRKNCTL_TEMPLATE = "krknctl run {name} --telemetry-prometheus-backup False --wait-duration {wait_duration} --kubeconfig {kubeconfig} {env_list} {{es_env_list}}"
+
+KRKNCTL_ES_TEMPLATE = ' --enable-es True --es-server "{server}" --es-port "{port}" --es-username "{username}" --es-password "{password}" --es-verify-certs "{verify_certs}" '
 
 KRKNCTL_GRAPH_RUN_TEMPLATE = "krknctl graph run {path} --kubeconfig {kubeconfig}"
 
@@ -78,7 +84,7 @@ class KrknRunner:
         start_time = datetime.datetime.now()
 
         # Generate command krkn executor command
-        log, returncode = None, None
+        log, returncode, run_uuid = None, None, None
         command = ""
         if isinstance(scenario, CompositeScenario):
             command = self.graph_command(scenario)
@@ -101,10 +107,10 @@ class KrknRunner:
             health_check_watcher.run()
 
             # Run command
-            log, returncode = run_shell(command, do_not_log=True)
+            log, returncode = run_shell(self.process_es_env_string(command, True), do_not_log=True)
             
             # Extract return code from run log which is part of telemetry data present in the log
-            returncode = self.__extract_returncode_from_run(log, returncode)
+            returncode, run_uuid = self.__extract_returncode_from_run(log, returncode)
             logger.info("Krkn scenario return code: %d", returncode)
 
             # Stop watching application urls for health checks
@@ -161,6 +167,7 @@ class KrknRunner:
                 fitness_result.health_check_response_time_score = health_check_watcher.summarize_response_time(health_check_results)
 
             # Calculate overall fitness score
+            logger.debug("Fitness result: %s", fitness_result)
             fitness_result.fitness_score = sum([
                 fitness_result.fitness_score,
                 fitness_result.krkn_failure_score,
@@ -172,13 +179,14 @@ class KrknRunner:
         return CommandRunResult(
             generation_id=generation_id,
             scenario=scenario,
-            cmd=command,
+            cmd=self.process_es_env_string(command, False),
             log=log,
             returncode=returncode,
             start_time=start_time,
             end_time=end_time,
             fitness_result=fitness_result,
-            health_check_results=health_check_results
+            health_check_results=health_check_results,
+            run_uuid=run_uuid
         )
 
     def runner_command(self, scenario: Scenario):
@@ -212,6 +220,33 @@ class KrknRunner:
             )
             return command
         raise Exception("Unsupported runner type")
+
+    def process_es_env_string(self, command: str, enable: bool):
+        # Patch Elasticsearch (ES) configuration into runner command for Krknctl or KrknHub
+
+        if not enable or self.config.elastic.enable is False:
+            # If ES is not enabled, remove the ES environment placeholder
+            return command.replace('{es_env_list}', "")
+
+        es_env_list = ""
+        if self.runner_type == KrknRunnerType.HUB_RUNNER:
+            es_env_list = PODMAN_ES_TEMPLATE.format(
+                server=self.config.elastic.server,
+                port=self.config.elastic.port,
+                username=self.config.elastic.username,
+                password=self.config.elastic.password,
+                verify_certs=self.config.elastic.verify_certs
+            )
+        elif self.runner_type == KrknRunnerType.CLI_RUNNER:
+            es_env_list = KRKNCTL_ES_TEMPLATE.format(
+                server=self.config.elastic.server,
+                port=self.config.elastic.port,
+                username=self.config.elastic.username,
+                password=self.config.elastic.password,
+                verify_certs=self.config.elastic.verify_certs
+            )
+
+        return command.replace('{es_env_list}', es_env_list)
 
     def graph_command(self, scenario: CompositeScenario):
         # Create directory under output folder to save CompositeScenario config
@@ -422,9 +457,9 @@ class KrknRunner:
 
         return float(result)
 
-    def __extract_returncode_from_run(self, log: str, default_returncode: int) -> dict:
+    def __extract_returncode_from_run(self, log: str, default_returncode: int) -> Tuple[int, Optional[str]]:
         """
-        Try to extracts Krkn return code from the run log. If extraction fails, return default_returncode.
+        Try to extracts Krkn return code and uuid from the run log. If extraction fails, return default_returncode.
         """
         try:
             # TODO: Look into if we can save telemetry data to file from Krkn itself.
@@ -440,7 +475,7 @@ class KrknRunner:
             
             if chaos_data_idx == -1:
                 logger.warning("Could not find 'Chaos data:' in log")
-                return default_returncode
+                return default_returncode, None
             
             # Extract JSON by counting braces
             json_lines = []
@@ -467,7 +502,7 @@ class KrknRunner:
             
             if not json_lines:
                 logger.warning("Could not extract JSON content from log")
-                return default_returncode
+                return default_returncode, None
             
             # Join all JSON lines into a single string
             json_str = '\n'.join(json_lines)
@@ -477,12 +512,14 @@ class KrknRunner:
             scenarios = chaos_data.get('telemetry', {}).get('scenarios', [])
             if scenarios and len(scenarios) > 0:
                 exit_status = scenarios[0].get('exit_status', default_returncode)
+                run_uuid = chaos_data.get('telemetry', {}).get('run_uuid', None)
                 logger.debug("Extracted exit_status: %s", exit_status)
-                return exit_status
+                logger.debug("Extracted run_uuid: %s", run_uuid)
+                return exit_status, run_uuid
             
             logger.warning("No exit_status found in telemetry data")
-            return default_returncode
+            return default_returncode, None
             
         except Exception as e:
             logger.error("Failed to extract return code from run log: %s", e)
-            return default_returncode
+            return default_returncode, None

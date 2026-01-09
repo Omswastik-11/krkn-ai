@@ -14,17 +14,7 @@ An intelligent chaos engineering framework that uses genetic algorithms to optim
 - **Prometheus Integration**: Metrics-driven fitness evaluation
 - **Configurable Fitness Functions**: Point-based and range-based fitness evaluation
 - **Population Evolution**: Maintains and evolves populations of chaos scenarios across generations
-
-## 🔧 Architecture
-
-Krkn-AI consists of several key components:
-
-- **Genetic Algorithm Engine**: Core optimization logic that evolves chaos scenarios
-- **Krkn Runner**: Integration with [Krkn](https://github.com/krkn-chaos/krkn) chaos engineering framework
-- **Health Check Watcher**: Monitors application endpoints during experiments
-- **Scenario Factory**: Creates and manages different types of chaos scenarios
-- **Configuration Manager**: Handles complex configuration parsing and validation
-
+ 
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -108,6 +98,16 @@ population_injection_rate: 0.1
 # Duration to wait before running next scenario (seconds)
 wait_duration: 30
 
+# Elasticsearch configuration for storing run results (Optional)
+elastic:
+  enable: false  # Set to true to enable Elasticsearch integration
+  verify_certs: true  # Verify SSL certificates
+  server: "http://localhost"  # Elasticsearch URL
+  port: 9200  # Elasticsearch port
+  username: "$ES_USER"  # Elasticsearch username
+  password: "$__ES_PASSWORD"  # Elasticsearch password (start param with __ to treat as private)
+  index: "krkn-ai"  # Index prefix for storing Krkn-AI config and results
+
 # Specify how result filenames are formatted
 output:
   result_name_fmt: "scenario_%s.yaml"
@@ -170,19 +170,6 @@ cluster_components:
 
 You can modify `krkn-ai.yaml` as per your requirement to include/exclude any cluster components, scenarios, fitness function SLOs or health check endpoints for the Krkn-AI testing.
 
-### Configuration Options
-
-| Section | Description |
-|---------|-------------|
-| `kubeconfig_file_path` | Path to Kubernetes configuration file |
-| `generations` | Number of evolutionary generations to run |
-| `population_size` | Size of each generation's population |
-| `composition_rate` | Rate of crossover between scenarios |
-| `population_injection_rate` | Rate of introducing new random scenarios |
-| `fitness_function` | Metrics query and evaluation method |
-| `health_checks` | Application endpoints to monitor |
-| `scenario` | Chaos scenario to be consider for chaos testing |
-| `cluster_components` | Cluster componments to include during the test |
 
 ## 🎯 Usage
 
@@ -193,8 +180,16 @@ You can modify `krkn-ai.yaml` as per your requirement to include/exclude any clu
 export PROMETHEUS_URL='https://your-prometheus-url'
 export PROMETHEUS_TOKEN='your-prometheus-token'
 
+# Configure elastic search properties (optional)
+export ES_USER="elasticsearch-username"
+export __ES_PASSWORD="elasticsearch-password"
+
 # Run Krkn-AI
-uv run krkn_ai run -vv -c ./tmp/krkn-ai.yaml -o ./tmp/results/ -p HOST=$HOST
+uv run krkn_ai run \
+  -c ./tmp/krkn-ai.yaml \
+  -o ./tmp/results/ \
+  -p HOST=$HOST \
+  -p ES_USER=$ES_USER -p __ES_PASSWORD=$__ES_PASSWORD
 ```
 
 ### CLI Options
