@@ -40,7 +40,7 @@ class NodeCPUHogScenario(Scenario):
 
     def mutate(self):
         # Filter out disabled nodes
-        nodes = [n for n in self._cluster_components.nodes if not n.disable]
+        nodes = [n for n in self._cluster_components.nodes if not n.is_disabled]
 
         if len(nodes) == 0:
             raise ScenarioParameterInitError("No nodes found in cluster components for node-cpu-hog scenario")

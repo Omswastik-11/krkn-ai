@@ -35,10 +35,10 @@ class AppOutageScenario(Scenario):
 
         # look for pods with labels, excluding disabled namespaces and pods
         for namespace in self._cluster_components.namespaces:
-            if namespace.disable:
+            if namespace.is_disabled:
                 continue
             for pod in namespace.pods:
-                if pod.disable:
+                if pod.is_disabled:
                     continue
                 if len(pod.labels) > 0:
                     namespace_pod_tuple.append((namespace, pod))
