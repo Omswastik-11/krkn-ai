@@ -78,7 +78,7 @@ class ClusterComponents(BaseModel):
                 services=[s for s in ns.services if not s.disabled],
                 pvcs=[pvc for pvc in ns.pvcs if not pvc.disabled],
                 vmis=[vmi for vmi in ns.vmis if not vmi.disabled],
-                disabled=ns.disabled
+                disabled=ns.disabled,
             )
             active_namespaces.append(active_ns)
 
