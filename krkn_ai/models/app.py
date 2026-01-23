@@ -25,7 +25,7 @@ class FitnessScoreResult(BaseModel):
 
 
 class FitnessResult(BaseModel):
-    scores: List[FitnessScoreResult] = []
+    scores: List[FitnessScoreResult] = Field(default_factory=list)
     health_check_failure_score: float = 0.0  # Health check failure score
     health_check_response_time_score: float = 0.0  # Health check response time score
     krkn_failure_score: float = 0.0  # Krkn failure score
@@ -42,7 +42,9 @@ class CommandRunResult(BaseModel):
     start_time: datetime.datetime  # Start date timestamp of the test
     end_time: datetime.datetime  # End date timestamp of the test
     fitness_result: FitnessResult  # Fitness result measured for scenario.
-    health_check_results: Dict[str, List[HealthCheckResult]] = {}
+    health_check_results: Dict[str, List[HealthCheckResult]] = Field(
+        default_factory=dict
+    )
     run_uuid: Optional[str] = (
         None  # Unique identifier generated from krkn engine during scenario execution
     )

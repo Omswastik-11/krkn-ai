@@ -1,5 +1,5 @@
 import re
-from typing import List, Union
+from typing import List, Union, Optional
 from krkn_lib.k8s.krkn_kubernetes import KrknKubernetes
 from kubernetes.client.models import V1PodSpec
 from krkn_ai.utils import run_shell
@@ -74,8 +74,10 @@ class ClusterManager:
         self,
         namespace: Namespace,
         pod_labels_patterns: Union[str, List[str], None] = None,
-        skip_pod_name_patterns: List[str] = [],
+        skip_pod_name_patterns: Optional[List[str]] = None,
     ) -> List[Pod]:
+        if skip_pod_name_patterns is None:
+            skip_pod_name_patterns = []
         pod_labels_patterns = self.__process_pattern(pod_labels_patterns)
 
         pods = self.core_api.list_namespaced_pod(namespace=namespace.name).items

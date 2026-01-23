@@ -112,7 +112,7 @@ class FitnessFunction(BaseModel):
     include_krkn_failure: bool = True
     include_health_check_failure: bool = True
     include_health_check_response_time: bool = True
-    items: List[FitnessFunctionItem] = []
+    items: List[FitnessFunctionItem] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def check_fitness_definition_exists(self):
@@ -139,7 +139,7 @@ class HealthCheckApplicationConfig(BaseModel):
 
 class HealthCheckConfig(BaseModel):
     stop_watcher_on_failure: bool = False
-    applications: List[HealthCheckApplicationConfig] = []
+    applications: List[HealthCheckApplicationConfig] = Field(default_factory=list)
 
 
 class OutputConfig(BaseModel):
@@ -191,7 +191,7 @@ class AdaptiveMutation(BaseModel):
 
 class ConfigFile(BaseModel):
     kubeconfig_file_path: str  # Path to kubeconfig
-    parameters: Dict[str, str] = {}
+    parameters: Dict[str, str] = Field(default_factory=dict)
 
     generations: Optional[int] = (
         20  # Total number of generations to run. Ignored if duration is set.

@@ -1,5 +1,5 @@
 from typing import Dict, List, Optional, Union
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class Container(BaseModel):
@@ -9,14 +9,14 @@ class Container(BaseModel):
 
 class Pod(BaseModel):
     name: str
-    labels: Dict[str, str] = {}
-    containers: List[Container] = []
+    labels: Dict[str, str] = Field(default_factory=dict)
+    containers: List[Container] = Field(default_factory=list)
     disabled: bool = False
 
 
 class PVC(BaseModel):
     name: str
-    labels: Dict[str, str] = {}
+    labels: Dict[str, str] = Field(default_factory=dict)
     current_usage_percentage: Optional[float] = None
     disabled: bool = False
 
@@ -29,8 +29,8 @@ class ServicePort(BaseModel):
 
 class Service(BaseModel):
     name: str
-    labels: Dict[str, str] = {}
-    ports: List[ServicePort] = []
+    labels: Dict[str, str] = Field(default_factory=dict)
+    ports: List[ServicePort] = Field(default_factory=list)
     disabled: bool = False
 
 
@@ -41,26 +41,26 @@ class VMI(BaseModel):
 
 class Namespace(BaseModel):
     name: str
-    pods: List[Pod] = []
-    services: List[Service] = []
-    pvcs: List[PVC] = []
-    vmis: List[VMI] = []
+    pods: List[Pod] = Field(default_factory=list)
+    services: List[Service] = Field(default_factory=list)
+    pvcs: List[PVC] = Field(default_factory=list)
+    vmis: List[VMI] = Field(default_factory=list)
     disabled: bool = False
 
 
 class Node(BaseModel):
     name: str
-    labels: Dict[str, str] = {}
+    labels: Dict[str, str] = Field(default_factory=dict)
     free_cpu: float = 0
     free_mem: float = 0
-    interfaces: List[str] = []
-    taints: List[str] = []
+    interfaces: List[str] = Field(default_factory=list)
+    taints: List[str] = Field(default_factory=list)
     disabled: bool = False
 
 
 class ClusterComponents(BaseModel):
-    namespaces: List[Namespace] = []
-    nodes: List[Node] = []
+    namespaces: List[Namespace] = Field(default_factory=list)
+    nodes: List[Node] = Field(default_factory=list)
 
     def get_active_components(self) -> "ClusterComponents":
         """
