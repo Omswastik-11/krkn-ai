@@ -494,8 +494,14 @@ class GeneticAlgorithm:
         logger.info("Saving config file to config.yaml")
         output_dir = self.output_dir
         os.makedirs(output_dir, exist_ok=True)
-        with open(os.path.join(output_dir, "krkn-ai.yaml"), "w", encoding="utf-8") as f:
-            config_data = self.config.model_dump(mode="json")
+        with open(
+            os.path.join(output_dir, "krkn-ai.yaml"),
+            "w",
+            encoding="utf-8"
+        ) as f:
+            config_data = self.config.model_dump(mode='json')
+            # exclude default values from cluster components
+            config_data['cluster_components'] = self.config.cluster_components.model_dump(mode='json', exclude_defaults=True)
             yaml.dump(config_data, f, sort_keys=False)
 
     def save_log_file(self, command_result: CommandRunResult):
