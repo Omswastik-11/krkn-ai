@@ -100,13 +100,19 @@ class ClusterManager:
 
         filtered_namespaces = set()
 
+        # Pre-compile regex patterns for better performance
+        compiled_patterns = []
+        for pat in namespace_patterns:
+            try:
+                compiled_patterns.append(re.compile(pat))
+            except re.error as e:
+                logger.error("Invalid regex pattern '%s': %s", pat, e)
+
         for ns in namespaces:
-            for pattern in namespace_patterns:
-                try:
-                    if re.match(pattern, ns):
-                        filtered_namespaces.add(ns)
-                except re.error as e:
-                    logger.error("Invalid regex pattern '%s': %s", pattern, e)
+            for regex in compiled_patterns:
+                if regex.match(ns):
+                    filtered_namespaces.add(ns)
+                    break
 
         logger.debug(
             "Filtered namespaces: %d/%d (pattern: %s)",
