@@ -6,7 +6,9 @@ their metadata.
 """
 
 import json
+import random
 from collections import Counter
+from dataclasses import dataclass
 from typing import List, Set, Optional
 from krkn_ai.models.cluster_components import Node
 from krkn_ai.utils.rng import rng
@@ -15,20 +17,14 @@ from krkn_ai.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+@dataclass
 class NodeSelectionResult:
     """Result of node selection operation."""
 
-    def __init__(
-        self,
-        node_selector: str,  # e.g., "kubernetes.io/hostname=node-1" or "disktype=ssd"
-        number_of_nodes: int,
-        taints_json: str,  # JSON string of taint list
-        matching_nodes: List[Node],  # Actual nodes matching the selector
-    ):
-        self.node_selector = node_selector
-        self.number_of_nodes = number_of_nodes
-        self.taints_json = taints_json
-        self.matching_nodes = matching_nodes
+    node_selector: str  # e.g., "kubernetes.io/hostname=node-1" or "disktype=ssd"
+    number_of_nodes: int
+    taints_json: str  # JSON string of taint list
+    matching_nodes: List[Node]  # Actual nodes matching the selector
 
 
 def select_nodes(nodes: List[Node]) -> NodeSelectionResult:
@@ -51,7 +47,6 @@ def select_nodes(nodes: List[Node]) -> NodeSelectionResult:
     if not nodes:
         raise ValueError("No nodes available for selection")
 
-    # Collect all label=value combinations and their frequency
     all_labels: Counter[str] = Counter()
     for node in nodes:
         for label_key, label_value in node.labels.items():
@@ -79,17 +74,23 @@ def select_nodes(nodes: List[Node]) -> NodeSelectionResult:
         node_selector = selected_label
         label_key, label_value = selected_label.split("=", 1)
 
-        # Find all nodes matching this label
-        matching_nodes = [n for n in nodes if n.labels.get(label_key) == label_value]
+        all_matching_nodes = [
+            n for n in nodes if n.labels.get(label_key) == label_value
+        ]
 
-        number_of_nodes = rng.randint(1, len(matching_nodes))
-        taints_json = _collect_taints_from_nodes(matching_nodes)
+        count = rng.randint(1, len(all_matching_nodes))
+        selected_nodes = random.sample(all_matching_nodes, k=count)
+
+        taints_json = _collect_taints_from_nodes(selected_nodes)
 
         logger.debug(
             f"Selected label {selected_label}: "
-            f"found {len(matching_nodes)} matching nodes, "
-            f"selecting {number_of_nodes}"
+            f"found {len(all_matching_nodes)} matching nodes, "
+            f"selecting {count}"
         )
+
+        matching_nodes = selected_nodes
+        number_of_nodes = count
 
     return NodeSelectionResult(
         node_selector=node_selector,
@@ -114,14 +115,15 @@ def _collect_taints_from_nodes(nodes: List[Node]) -> str:
     Returns:
         JSON string representation of deduplicated taints
     """
-    seen_taints: Set[str] = set()
-    all_taints: List[str] = []
+    seen_taints_json: Set[str] = set()
+    all_taints: List = []
 
     for node in nodes:
         if node.taints:
             for taint in node.taints:
-                if taint not in seen_taints:
-                    seen_taints.add(taint)
+                taint_json = json.dumps(taint, sort_keys=True)
+                if taint_json not in seen_taints_json:
+                    seen_taints_json.add(taint_json)
                     all_taints.append(taint)
 
     return json.dumps(all_taints)
