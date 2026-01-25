@@ -46,7 +46,6 @@ jobs:
             Thank you for your understanding!
 
           # Exempt labels
-          exempt-issue-labels: 'bug,enhancement,good first issue'
           exempt-pr-labels: 'pending discussions,hold'
 
           remove-stale-when-updated: true
