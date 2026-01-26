@@ -1,11 +1,12 @@
 import os
 import copy
+import datetime
 import json
 import time
 import uuid
 from typing_extensions import Dict
 import yaml
-from typing import List, Optional
+from typing import List, Optional, Any
 
 from krkn_ai.models.app import CommandRunResult, KrknRunnerType
 
@@ -81,6 +82,12 @@ class GeneticAlgorithm:
         self.run_uuid = str(uuid.uuid4())
         logger.info("Krkn-AI run UUID: %s", self.run_uuid)
 
+        # Track run metadata for results summary
+        self.start_time: Optional[datetime.datetime] = None
+        self.end_time: Optional[datetime.datetime] = None
+        self.seed: Optional[int] = None  # Seed can be set externally if needed
+        self.completed_generations: int = 0
+
         if self.config.population_size < 2:
             raise PopulationSizeError("Population size should be at least 2")
 
@@ -105,6 +112,7 @@ class GeneticAlgorithm:
         self.population = self.create_population(self.config.population_size)
 
         # Variables to track the progress of the algorithm
+        self.start_time = datetime.datetime.now(datetime.timezone.utc)
         start_time = time.time()
         cur_generation = 0
 
@@ -122,6 +130,8 @@ class GeneticAlgorithm:
                     cur_generation,
                     format_duration(elapsed_time),
                 )
+                self.completed_generations = cur_generation
+                self.end_time = datetime.datetime.now(datetime.timezone.utc)
                 break
 
             # Check if duration has been exceeded
@@ -136,6 +146,8 @@ class GeneticAlgorithm:
                         cur_generation,
                         format_duration(elapsed_time),
                     )
+                    self.completed_generations = cur_generation
+                    self.end_time = datetime.datetime.now(datetime.timezone.utc)
                     break
                 remaining_time = self.config.duration - elapsed_time
                 logger.debug(
@@ -146,6 +158,8 @@ class GeneticAlgorithm:
 
             if len(self.population) == 0:
                 logger.warning("No more population found, stopping generations.")
+                self.completed_generations = cur_generation
+                self.end_time = datetime.datetime.now(datetime.timezone.utc)
                 break
 
             logger.info("| Population |")
@@ -488,13 +502,133 @@ class GeneticAlgorithm:
 
     def save(self):
         """Save run results"""
-        # TODO: Create a single result file (results.json) that contains summary of all the results
         self.generations_reporter.save_best_generations(self.best_of_generation)
         self.generations_reporter.save_best_generation_graph(self.best_of_generation)
         self.health_check_reporter.save_report(self.seen_population.values())
         self.health_check_reporter.sort_fitness_result_csv()
 
+        # Generate and save unified results summary
+        results_summary = self.generate_results_summary()
+        self.save_results_summary(results_summary)
+
         # TODO: Send run summary to Elasticsearch
+
+    def generate_results_summary(self) -> Dict[str, Any]:
+        """
+        Generate a unified results summary containing all run statistics.
+
+        Returns:
+            Dict containing run metadata, config summary, best scenarios,
+            and fitness progression over generations.
+        """
+        # Calculate duration
+        duration_seconds = 0.0
+        if self.start_time and self.end_time:
+            duration_seconds = (self.end_time - self.start_time).total_seconds()
+
+        # Get all fitness scores for statistics
+        all_fitness_scores = [
+            result.fitness_result.fitness_score
+            for result in self.seen_population.values()
+        ]
+
+        # Calculate average fitness score
+        average_fitness_score = 0.0
+        if all_fitness_scores:
+            average_fitness_score = sum(all_fitness_scores) / len(all_fitness_scores)
+
+        # Get best fitness score
+        best_fitness_score = 0.0
+        if all_fitness_scores:
+            best_fitness_score = max(all_fitness_scores)
+
+        # Count unique scenarios by their string representation
+        unique_scenarios = set()
+        for result in self.seen_population.values():
+            unique_scenarios.add(str(result.scenario))
+
+        # Generate fitness progression from best_of_generation
+        fitness_progression = []
+        for i, result in enumerate(self.best_of_generation):
+            # Calculate average fitness for this generation from seen_population
+            gen_fitness_scores = [
+                r.fitness_result.fitness_score
+                for r in self.seen_population.values()
+                if r.generation_id == i
+            ]
+            gen_average = 0.0
+            if gen_fitness_scores:
+                gen_average = sum(gen_fitness_scores) / len(gen_fitness_scores)
+
+            fitness_progression.append({
+                "generation": i,
+                "best": result.fitness_result.fitness_score,
+                "average": round(gen_average, 4),
+            })
+
+        # Generate best scenarios list (sorted by fitness score, top 10)
+        sorted_results = sorted(
+            self.seen_population.values(),
+            key=lambda x: x.fitness_result.fitness_score,
+            reverse=True,
+        )
+        best_scenarios = []
+        for rank, result in enumerate(sorted_results[:10], start=1):
+            scenario_params = {}
+            if hasattr(result.scenario, "parameters"):
+                scenario_params = {
+                    param.get_name(): param.get_value()
+                    for param in result.scenario.parameters
+                }
+
+            best_scenarios.append({
+                "rank": rank,
+                "scenario_id": result.scenario_id,
+                "generation": result.generation_id,
+                "fitness_score": result.fitness_result.fitness_score,
+                "scenario_type": result.scenario.name,
+                "parameters": scenario_params,
+            })
+
+        # Build the results summary
+        results_summary: Dict[str, Any] = {
+            "run_id": self.run_uuid,
+            "seed": self.seed,
+            "start_time": self.start_time.isoformat() if self.start_time else None,
+            "end_time": self.end_time.isoformat() if self.end_time else None,
+            "duration_seconds": round(duration_seconds, 2),
+            "config": {
+                "generations": self.config.generations,
+                "population_size": self.config.population_size,
+                "mutation_rate": self.config.mutation_rate,
+                "scenario_mutation_rate": self.config.scenario_mutation_rate,
+                "crossover_rate": self.config.crossover_rate,
+                "composition_rate": self.config.composition_rate,
+            },
+            "summary": {
+                "total_scenarios_executed": len(self.seen_population),
+                "unique_scenarios": len(unique_scenarios),
+                "generations_completed": self.completed_generations,
+                "best_fitness_score": round(best_fitness_score, 4),
+                "average_fitness_score": round(average_fitness_score, 4),
+            },
+            "best_scenarios": best_scenarios,
+            "fitness_progression": fitness_progression,
+        }
+
+        return results_summary
+
+    def save_results_summary(self, results_summary: Dict[str, Any]):
+        """
+        Save the results summary to a JSON file in the output directory.
+
+        Args:
+            results_summary: Dictionary containing the run summary data.
+        """
+        output_path = os.path.join(self.output_dir, "results.json")
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(results_summary, f, indent=2)
+        logger.info("Results summary saved to %s", output_path)
 
     def save_config(self):
         logger.info("Saving config file to config.yaml")
