@@ -40,10 +40,10 @@ class ClusterManager:
         Discover cluster components with optional filtering.
 
         Args:
-            namespace_pattern: Pattern for namespace names. None or '*' means all
+            namespace_pattern: Pattern for namespace names. None or '*' means no
                               namespaces. Supports regex patterns and comma-separated
                               list.
-                              Examples: None, '*', '.*', 'default,kube.*', 'prod-.*'
+                              Examples: 'default', 'default,kube.*', 'prod-.*'
             pod_label_pattern: Pattern for pod labels (optional)
             node_label_pattern: Pattern for node labels (optional)
             skip_pod_name: Pattern for pod names to skip (optional)
@@ -74,7 +74,7 @@ class ClusterManager:
 
         Args:
             namespace_pattern: Regex pattern to match namespace names.
-                              - None or '*' or '.*': Match all namespaces
+                              - None or '*' or '.*': Match no namespaces
                               - 'pattern1,pattern2': Match multiple comma-separated patterns
                               - 'kube-.*': Match namespaces starting with 'kube-'
 
@@ -87,10 +87,9 @@ class ClusterManager:
 
         if not namespace_patterns:
             logger.debug(
-                "No namespace pattern provided (or wildcard used), "
-                "defaulting to all namespaces"
+                "No namespace pattern provided (or wildcard used), so return empty list "
             )
-            namespace_patterns = [".*"]  # Match all
+            return []
 
         namespaces = self.krkn_k8s.list_namespaces()
 
@@ -363,12 +362,12 @@ class ClusterManager:
 
         Args:
             pattern_string: Pattern or None. Examples:
-                - None, '', '*', '.*': Returns [] (interpreted as "all" by caller)
+                - None, '', '*', '.*': Returns [] (interpreted as "none" by caller)
                 - 'pattern1,pattern2': Returns ['pattern1', 'pattern2']
                 - 'kube-system': Returns ['kube-system']
 
         Returns:
-            List of regex patterns, or empty list for "match all" semantics
+            List of regex patterns, or empty list for "match none" semantics
         """
         # Used for handling skip_pod_name pattern None
         if pattern_string is None:
@@ -379,7 +378,8 @@ class ClusterManager:
             return pattern_string
 
         stripped_pattern = pattern_string.strip()
-        # None, empty string, or common wildcards mean "match all"
+        # None, empty string, or common wildcards mean "match none" by default
+        # to ensure explicit selection of namespaces
         if stripped_pattern == "" or stripped_pattern in ("*", ".*"):
             return []
 

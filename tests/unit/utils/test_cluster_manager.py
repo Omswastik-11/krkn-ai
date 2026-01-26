@@ -173,32 +173,32 @@ class TestClusterManager:
         assert len(namespaces) == 2
         assert {ns.name for ns in namespaces} == {"default", "test-ns"}
 
-        # Test with pattern matching all (.* matches everything)
+        # Test with pattern matching all (.* matches everything) - REDUCED TO MATCH NONE BY DEFAULT
         namespaces = cluster_manager.list_namespaces(".*")
-        assert len(namespaces) == 3
-        assert {ns.name for ns in namespaces} == {"default", "kube-system", "test-ns"}
+        assert len(namespaces) == 0
+        assert {ns.name for ns in namespaces} == set()
 
     def test_list_namespaces_handles_none_and_wildcards(
         self, cluster_manager, mock_krkn_k8s
     ):
-        """Test list_namespaces handles None, '*' and empty string as 'all'"""
+        """Test list_namespaces handles None, '*' and empty string as 'none'"""
         mock_krkn_k8s.list_namespaces.return_value = [
             "default",
             "kube-system",
             "test-ns",
         ]
 
-        # None should match all
+        # None should match none
         namespaces = cluster_manager.list_namespaces(None)
-        assert len(namespaces) == 3
+        assert len(namespaces) == 0
 
-        # '*' wildcard should match all
+        # '*' wildcard should match none
         namespaces = cluster_manager.list_namespaces("*")
-        assert len(namespaces) == 3
+        assert len(namespaces) == 0
 
-        # Empty string should match all
+        # Empty string should match none
         namespaces = cluster_manager.list_namespaces("  ")
-        assert len(namespaces) == 3
+        assert len(namespaces) == 0
 
     def test_list_namespaces_with_multiple_patterns(
         self, cluster_manager, mock_krkn_k8s
