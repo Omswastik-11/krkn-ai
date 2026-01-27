@@ -49,7 +49,7 @@ jobs:
             Thank you for your understanding!
 
           # Exempt labels
-          exempt-issue-labels: 'bug,enhancement,help wanted,good first issue'
+          exempt-issue-labels: 'bug,help wanted,good first issue'
           exempt-pr-labels: 'pending discussions,hold'
 
           remove-stale-when-updated: true
