@@ -513,3 +513,39 @@ class KillCountParameter(BaseParameter):
     krknhub_name: str = "KILL_COUNT"
     krknctl_name: str = "kill-count"
     value: int = 1
+
+
+class CloudTypeParameter(BaseParameter):
+    krknhub_name: str = "CLOUD_TYPE"
+    krknctl_name: str = "cloud-type"
+    value: str = "aws"
+
+    def mutate(self):
+        self.value = rng.choice(["aws", "gcp"])
+
+
+class VpcIdParameter(BaseParameter):
+    krknhub_name: str = "VPC_ID"
+    krknctl_name: str = "vpc-id"
+    value: str = ""
+
+
+class SubnetIdParameter(BaseParameter):
+    krknhub_name: str = "SUBNET_ID"
+    krknctl_name: str = "subnet-id"
+    value: list = []
+
+
+class ZoneParameter(BaseParameter):
+    krknhub_name: str = "ZONE"
+    krknctl_name: str = "zone"
+    value: str = ""
+
+
+class KubeCheckParameter(BaseParameter):
+    krknhub_name: str = "KUBE_CHECK"
+    krknctl_name: str = "kube-check"
+    value: bool = True
+
+    def mutate(self):
+        self.value = rng.choice([True, False])

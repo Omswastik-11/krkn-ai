@@ -16,6 +16,7 @@ from krkn_ai.models.scenario.scenario_network import NetworkScenario
 from krkn_ai.models.scenario.scenario_dns_outage import DnsOutageScenario
 from krkn_ai.models.scenario.scenario_syn_flood import SynFloodScenario
 from krkn_ai.models.scenario.scenario_pvc import PVCScenario
+from krkn_ai.models.scenario.scenario_zone_outage import ZoneOutageScenario
 from krkn_ai.models.cluster_components import (
     ClusterComponents,
     Namespace,
@@ -324,3 +325,43 @@ class TestPVCScenario:
 
         with pytest.raises(ScenarioParameterInitError, match="No namespaces found"):
             PVCScenario(cluster_components=cluster)
+
+
+class TestZoneOutageScenario:
+    """Test ZoneOutageScenario class"""
+
+    def test_zone_outage_scenario_initialization(self):
+        """Test that ZoneOutageScenario initializes with default parameters"""
+
+        nodes = [
+            Node(name="node1", labels={"topology.kubernetes.io/zone": "us-west-1a"})
+        ]
+        cluster = ClusterComponents(namespaces=[], nodes=nodes)
+        scenario = ZoneOutageScenario(cluster_components=cluster)
+
+        assert scenario.name == "zone_outages"
+        assert scenario.cloud_type.value in ["aws", "gcp"]
+
+        if scenario.cloud_type.value == "gcp":
+            assert scenario.zone.value in ["us-west-1a", "us-west1-a"]
+
+        if scenario.cloud_type.value == "aws":
+            assert scenario.vpc_id.value != ""
+            assert len(scenario.subnet_id.value) > 0
+
+    def test_zone_outage_scenario_gcp_detection(self):
+        """Test GCP detection from node labels"""
+        nodes = [
+            Node(
+                name="node1",
+                labels={
+                    "cloud.google.com/gke-nodepool": "default-pool",
+                    "topology.kubernetes.io/zone": "europe-west1-b",
+                },
+            )
+        ]
+        cluster = ClusterComponents(namespaces=[], nodes=nodes)
+
+        scenario = ZoneOutageScenario(cluster_components=cluster)
+        assert scenario.cloud_type.value == "gcp"
+        assert scenario.zone.value == "europe-west1-b"
