@@ -1,10 +1,13 @@
 FROM quay.io/podman/stable:v5.7.0
 
+ARG VERSION=0.0.1
+
 LABEL org.opencontainers.image.title="Krkn-AI" \
       org.opencontainers.image.description="AI-powered chaos engineering tool using genetic algorithms with krkn" \
       org.opencontainers.image.source="https://github.com/krkn-chaos/krkn-ai" \
       org.opencontainers.image.vendor="krkn-chaos" \
-      org.opencontainers.image.licenses="Apache-2.0"
+      org.opencontainers.image.licenses="Apache-2.0" \
+      org.opencontainers.image.version="${VERSION}"
 
 WORKDIR /app
 
