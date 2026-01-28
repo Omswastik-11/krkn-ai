@@ -35,6 +35,3 @@ jobs:
             revert
           # Check if the title contains a scope. (Optional)
           requireScope: false
-          # For PRs with multiple commits, it's often better to check the PR title
-          # instead of every single commit, as the PR title will usually become
-          # the squash commit message.
