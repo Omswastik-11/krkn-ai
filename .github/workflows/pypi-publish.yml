@@ -22,7 +22,6 @@ jobs:
         pip install build twine
 
     - name: Build package
-# hadolint ignore=DL3013
       run: python -m build
 
     - name: Publish to PyPI
