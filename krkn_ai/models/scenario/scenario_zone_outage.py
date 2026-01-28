@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 from krkn_ai.models.scenario.base import Scenario
 from krkn_ai.models.scenario.parameters import (
     CloudTypeParameter,
@@ -57,9 +57,12 @@ class ZoneOutageScenario(Scenario):
             self.subnet_id.value = []
 
         elif self.cloud_type.value == "aws":
-            self.vpc_id.value = "vpc-xxxxxx"  # Placeholder for real VPC
-            self.subnet_id.value = ["subnet-xxxxxx"]  # Placeholder for subnets
-            self.zone.value = ""
+            vpc_id, subnets = self._get_aws_ids()
+            self.vpc_id.value = vpc_id
+            self.subnet_id.value = subnets
+            self.zone.value = (
+                self._get_zones_from_nodes()[0] if self._get_zones_from_nodes() else ""
+            )
             self.kube_check.value = True
 
     def _detect_cloud_type(self) -> str:
@@ -81,3 +84,7 @@ class ZoneOutageScenario(Scenario):
                 if label in node.labels:
                     zones.add(node.labels[label])
         return list(zones)
+
+    def _get_aws_ids(self) -> Tuple[str, List[str]]:
+        """Placeholder for getting AWS VPC and Subnet IDs."""
+        return "vpc-xxxxxx", ["subnet-xxxxxx"]

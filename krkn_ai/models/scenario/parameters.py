@@ -1,4 +1,5 @@
 import math
+from typing import List
 from pydantic import BaseModel, Field
 from krkn_ai.utils.rng import rng
 from krkn_ai.models.scenario.base import BaseParameter
@@ -533,7 +534,7 @@ class VpcIdParameter(BaseParameter):
 class SubnetIdParameter(BaseParameter):
     krknhub_name: str = "SUBNET_ID"
     krknctl_name: str = "subnet-id"
-    value: list = []
+    value: List[str] = Field(default_factory=list)
 
 
 class ZoneParameter(BaseParameter):

@@ -330,24 +330,41 @@ class TestPVCScenario:
 class TestZoneOutageScenario:
     """Test ZoneOutageScenario class"""
 
-    def test_zone_outage_scenario_initialization(self):
-        """Test that ZoneOutageScenario initializes with default parameters"""
-
+    @patch(
+        "krkn_ai.models.scenario.scenario_zone_outage.ZoneOutageScenario._get_aws_ids"
+    )
+    def test_zone_outage_scenario_aws_initialization(self, mock_get_aws_ids):
+        """Test that ZoneOutageScenario initializes correctly for AWS"""
+        mock_get_aws_ids.return_value = ("vpc-12345", ["subnet-12345"])
         nodes = [
             Node(name="node1", labels={"topology.kubernetes.io/zone": "us-west-1a"})
         ]
         cluster = ClusterComponents(namespaces=[], nodes=nodes)
-        scenario = ZoneOutageScenario(cluster_components=cluster)
+
+        # Patch rng.choice to return 'aws' to force the AWS path
+        with patch("krkn_ai.utils.rng.rng.choice", return_value="aws"):
+            scenario = ZoneOutageScenario(cluster_components=cluster)
 
         assert scenario.name == "zone_outages"
-        assert scenario.cloud_type.value in ["aws", "gcp"]
+        assert scenario.cloud_type.value == "aws"
+        assert scenario.zone.value == "us-west-1a"
+        assert scenario.vpc_id.value == "vpc-12345"
+        assert scenario.subnet_id.value == ["subnet-12345"]
 
-        if scenario.cloud_type.value == "gcp":
-            assert scenario.zone.value in ["us-west-1a", "us-west1-a"]
+    def test_zone_outage_scenario_gcp_initialization(self):
+        """Test that ZoneOutageScenario initializes correctly for GCP"""
+        nodes = [
+            Node(name="node1", labels={"topology.kubernetes.io/zone": "us-west1-a"})
+        ]
+        cluster = ClusterComponents(namespaces=[], nodes=nodes)
 
-        if scenario.cloud_type.value == "aws":
-            assert scenario.vpc_id.value != ""
-            assert len(scenario.subnet_id.value) > 0
+        # Patch rng.choice to return 'gcp' for cloud type and then 'us-west1-a' for zone
+        with patch("krkn_ai.utils.rng.rng.choice", side_effect=["gcp", "us-west1-a"]):
+            scenario = ZoneOutageScenario(cluster_components=cluster)
+
+        assert scenario.name == "zone_outages"
+        assert scenario.cloud_type.value == "gcp"
+        assert scenario.zone.value == "us-west1-a"
 
     def test_zone_outage_scenario_gcp_detection(self):
         """Test GCP detection from node labels"""
