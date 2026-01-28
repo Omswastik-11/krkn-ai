@@ -37,21 +37,62 @@ Scope is optional (e.g. `fix(cli): ...`) but helpful. If the PR title check fail
 
 ### Commit messages
 
-Follow Conventional Commits for individual commits where possible — release tooling (release-please) uses commit types to determine version bumps:
+Follow Conventional Commits for individual commits where possible — release tooling (release-please) uses commit types to determine version bumps. See the specification for details: https://www.conventionalcommits.org/en/v1.0.0/
 
-- `feat:` -> minor bump
-- `fix:` -> patch bump
-- `BREAKING CHANGE:` -> major bump
+Common types and short examples:
 
-Example commit message:
+- `feat(scope): description` — Adds a new feature.
+	- Example: `feat(parser): add support for YAML configs`
+- `fix(scope): description` — Bug fix.
+	- Example: `fix(auth): handle token refresh failure`
+- `docs(scope): description` — Documentation only changes.
+	- Example: `docs(readme): clarify installation steps`
+- `style: description` — Formatting, missing semi-colons, etc; no code change.
+	- Example: `style: format code with black`
+- `refactor(scope): description` — Code change that neither fixes a bug nor adds a feature.
+	- Example: `refactor(core): split runner into smaller modules`
+- `perf(scope): description` — Performance improvement.
+	- Example: `perf(db): reduce query latency by adding index`
+- `test(scope): description` — Add or update tests.
+	- Example: `test(api): add integration tests for endpoints`
+- `build: description` — Changes that affect the build system or external dependencies.
+	- Example: `build: update pyproject metadata`
+- `ci: description` — CI configuration changes.
+	- Example: `ci: update GitHub Actions workflow node version`
+- `chore: description` — Other changes that do not modify src or test files.
+	- Example: `chore: bump development dependencies`
+- `revert: description` — Revert a previous commit.
+	- Example: `revert: revert "feat: add experimental API"`
+
+Using scope is optional but recommended for clarity (e.g. `fix(cli): ...`).
+
+BREAKING CHANGES
+
+If your change introduces a breaking API change, include a `BREAKING CHANGE:` section in the commit body or include an exclamation mark after the type (e.g. `feat!: description`). Example:
+
+```
+feat(api): change config schema
+
+BREAKING CHANGE: `kubeconfig_file_path` renamed to `kubeconfig_path`.
+```
+
+Release mapping (how `release-please` treats commits):
+
+- `feat` -> minor version bump
+- `fix` -> patch version bump
+- `BREAKING CHANGE` -> major version bump
+
+Example full commit message:
 
 ```
 feat(api): add enhanced health-check endpoint
 
-Add timeout and retry behavior to the health endpoint.
+Add timeout and retry behavior to the health endpoint to improve stability when the cluster is under load.
+
+BREAKING CHANGE: the previous health-check endpoint path `/health` now returns structured JSON.
 ```
 
-If you cannot follow the format for a small or WIP change, ensure the PR title is correct before merging.
+If you have WIP commits while developing, it's fine to use informal messages locally, but ensure the final commits (or at least the PR title) follow the convention before merging.
 
 ### Signing commits
 
@@ -87,15 +128,6 @@ The repository's CI runs `pre-commit` on changed files and runs the test suite; 
 - Provide a short description of the change and list any steps required to validate it.
 - If your change affects public APIs or configuration, document the change and any migration steps in the PR description.
 
-### Labels and automation
-
-This project uses automated labeling (path-based) and a semantic PR check for PR titles. Labels are applied by `.github/labeler.yml` based on changed paths. The semantic PR workflow will block merge until a valid title is provided.
-
-Release automation is handled by `googleapis/release-please-action` which reads commit messages and PRs to create changelogs and release PRs. To ensure correct release behavior, prefer `feat:` and `fix:` commit types when the changes match those categories.
-
-### PR template and CONTRIBUTING improvements
-
-Tip: We recommend adding a PR template at `.github/pull_request_template.md` to remind contributors about the title format and checklist items (tests, changelog, etc.).
 
 ### Reporting issues
 
