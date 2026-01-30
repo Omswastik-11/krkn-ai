@@ -26,7 +26,7 @@ An intelligent chaos engineering framework that uses genetic algorithms to optim
 - Python 3.9+
 - `uv` package manager (recommended) or `pip`
 - [podman](https://podman.io/)
-- helm
+- [helm](https://helm.sh/docs/intro/install/)
 - Kubernetes cluster access file (kubeconfig)
 
 ### Setup Virtual Environment
