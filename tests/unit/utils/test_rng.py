@@ -1,6 +1,5 @@
-
-import pytest
 from krkn_ai.utils.rng import RNG
+
 
 class TestRNG:
     def test_init_without_seed(self):
@@ -15,10 +14,10 @@ class TestRNG:
         seed = 42
         rng = RNG(seed)
         assert rng.get_seed() == seed
-        
+
         # Verify reproducibility
         val1 = rng.random()
-        
+
         rng2 = RNG(seed)
         val2 = rng2.random()
         assert val1 == val2
@@ -29,9 +28,9 @@ class TestRNG:
         seed = 12345
         rng.set_seed(seed)
         assert rng.get_seed() == seed
-        
+
         val1 = rng.random()
-        
+
         # Reset with same seed
         rng.set_seed(seed)
         val2 = rng.random()
@@ -50,7 +49,7 @@ class TestRNG:
         items = [1, 2, 3, 4, 5]
         choice = rng.choice(items)
         assert choice in items
-        
+
         # Reproducibility check
         rng.set_seed(42)
         choice2 = rng.choice(items)
@@ -61,13 +60,13 @@ class TestRNG:
         rng = RNG(42)
         items = ["a", "b", "c"]
         weights = [0.1, 0.8, 0.1]
-        
+
         # "b" has highest weight, should appear most often in a large sample
         # but for a simple unit test we just check return structure
         choices = rng.choices(items, weights, k=5)
         assert len(choices) == 5
         assert all(c in items for c in choices)
-        
+
         # Reproducibility check
         rng.set_seed(42)
         choices2 = rng.choices(items, weights, k=5)
@@ -80,7 +79,7 @@ class TestRNG:
         val = rng.randint(low, high)
         assert isinstance(val, int)
         assert low <= val < high
-        
+
         # Test low == high case
         assert rng.randint(5, 5) == 5
 
