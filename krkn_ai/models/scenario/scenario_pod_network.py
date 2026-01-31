@@ -86,7 +86,6 @@ class PodNetworkChaosScenario(Scenario):
     def mutate(self) -> None:
         namespace_pod_tuples: List[Tuple[Namespace, Pod]] = []
 
-        # Look for pods with labels
         for namespace in self._cluster_components.namespaces:
             for pod in namespace.pods:
                 if len(pod.labels) > 0:
@@ -97,7 +96,6 @@ class PodNetworkChaosScenario(Scenario):
                 "No pods found with labels for pod-network-chaos scenario"
             )
 
-        # Decide between targeting by pod name or by label selector
         use_pod_name = rng.random() < 0.5
 
         if use_pod_name:
@@ -105,14 +103,11 @@ class PodNetworkChaosScenario(Scenario):
         else:
             self._select_by_label(namespace_pod_tuples)
 
-        # Mutate traffic type and duration parameters
         self.traffic_type.mutate()
         self.test_duration.mutate()
 
-        # Ensure wait_duration is at least twice test_duration
         self.wait_duration.value = self.test_duration.value * 2 + rng.randint(0, 60)
 
-        # Optionally set port filters based on traffic type
         self._set_port_filters()
 
     def _select_by_pod_name(
@@ -129,37 +124,31 @@ class PodNetworkChaosScenario(Scenario):
         self, namespace_pod_tuples: List[Tuple[Namespace, Pod]]
     ) -> None:
         """Select pods by label selector."""
-        # Group by namespace to pick pods from the same namespace
         namespace_pods: dict = {}
         for namespace, pod in namespace_pod_tuples:
             if namespace.name not in namespace_pods:
                 namespace_pods[namespace.name] = []
             namespace_pods[namespace.name].append(pod)
 
-        # Pick a random namespace
         namespace_name = rng.choice(list(namespace_pods.keys()))
         pods = namespace_pods[namespace_name]
         self.namespace.value = namespace_name
 
-        # Collect all labels from pods in this namespace
         all_labels: Counter = Counter()
         for pod in pods:
             for label, value in pod.labels.items():
                 all_labels[f"{label}={value}"] += 1
 
         if len(all_labels) == 0:
-            # Fall back to pod name selection
             pod = rng.choice(pods)
             self.pod_name.value = pod.name
             self.label_selector.value = ""
             self.instance_count.value = 1
             return
 
-        # Select a random label
         label = rng.choice(list(all_labels.keys()))
         if "=" in label:
             key, value = label.split("=", 1)
-            # Format as {key: value} for pod-network-chaos
             self.label_selector.value = f"{key}={value}"
         else:
             self.label_selector.value = label
@@ -172,13 +161,10 @@ class PodNetworkChaosScenario(Scenario):
         """Optionally set ingress/egress port filters."""
         traffic_type = self.traffic_type.value
 
-        # 50% chance to set specific ports
         if rng.random() < 0.5:
-            # Common ports to block
             common_ports = [80, 443, 8080, 8443, 3000, 5000, 6379, 5432, 3306, 27017]
 
             if "ingress" in traffic_type.lower():
-                # Set ingress ports
                 num_ports = rng.randint(1, 3)
                 selected_ports = []
                 for _ in range(num_ports):
@@ -191,7 +177,6 @@ class PodNetworkChaosScenario(Scenario):
                     )
 
             if "egress" in traffic_type.lower():
-                # Set egress ports
                 num_ports = rng.randint(1, 3)
                 selected_ports = []
                 for _ in range(num_ports):
