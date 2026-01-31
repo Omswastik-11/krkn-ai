@@ -1,4 +1,5 @@
 import math
+from typing import ClassVar, List
 from pydantic import BaseModel, Field
 from krkn_ai.utils.rng import rng
 from krkn_ai.models.scenario.base import BaseParameter
@@ -513,3 +514,140 @@ class KillCountParameter(BaseParameter):
     krknhub_name: str = "KILL_COUNT"
     krknctl_name: str = "kill-count"
     value: int = 1
+
+
+# Pod Network Chaos Scenario Parameters
+class PodNetworkNamespaceParameter(BaseParameter):
+    """
+    Namespace of the pod to which filter needs to be applied.
+    """
+
+    krknhub_name: str = "NAMESPACE"
+    krknctl_name: str = "namespace"
+    value: str = ""
+
+
+class PodNetworkImageParameter(BaseParameter):
+    """
+    Image used to disrupt network on a pod.
+    """
+
+    krknhub_name: str = "IMAGE"
+    krknctl_name: str = "image"
+    value: str = "quay.io/krkn-chaos/krkn:tools"
+
+
+class PodNetworkLabelSelectorParameter(BaseParameter):
+    """
+    When pod_name is not specified, pods matching the label will be
+    selected for the chaos scenario.
+    """
+
+    krknhub_name: str = "LABEL_SELECTOR"
+    krknctl_name: str = "label-selector"
+    value: str = ""
+
+
+class PodNetworkExcludeLabelParameter(BaseParameter):
+    """
+    Pods matching this label will be excluded from the chaos
+    even if they match other criteria.
+    """
+
+    krknhub_name: str = "EXCLUDE_LABEL"
+    krknctl_name: str = "exclude-label"
+    value: str = ""
+
+
+class PodNetworkPodNameParameter(BaseParameter):
+    """
+    When label_selector is not specified, pod matching the name
+    will be selected for the chaos scenario.
+    """
+
+    krknhub_name: str = "POD_NAME"
+    krknctl_name: str = "pod-name"
+    value: str = ""
+
+
+class PodNetworkInstanceCountParameter(BaseParameter):
+    """
+    Targeted instance count matching the label selector.
+    """
+
+    krknhub_name: str = "INSTANCE_COUNT"
+    krknctl_name: str = "instance-count"
+    value: int = 1
+
+    def mutate(self, max_count: int = 1):
+        """Mutate the instance count between 1 and max_count."""
+        self.value = rng.randint(1, max(1, max_count))
+
+
+class PodNetworkTrafficTypeParameter(BaseParameter):
+    """
+    List of directions to apply filters - egress/ingress.
+    """
+
+    krknhub_name: str = "TRAFFIC_TYPE"
+    krknctl_name: str = "traffic-type"
+    value: str = "[ingress,egress]"
+
+    TRAFFIC_OPTIONS: ClassVar[List[str]] = [
+        "[ingress]",
+        "[egress]",
+        "[ingress,egress]",
+    ]
+
+    def mutate(self):
+        """Mutate traffic type to one of the available options."""
+        self.value = rng.choice(self.TRAFFIC_OPTIONS)
+
+
+class PodNetworkIngressPortsParameter(BaseParameter):
+    """
+    Ingress ports to block (needs to be a list).
+    """
+
+    krknhub_name: str = "INGRESS_PORTS"
+    krknctl_name: str = "ingress-ports"
+    value: str = ""
+
+
+class PodNetworkEgressPortsParameter(BaseParameter):
+    """
+    Egress ports to block (needs to be a list).
+    """
+
+    krknhub_name: str = "EGRESS_PORTS"
+    krknctl_name: str = "egress-ports"
+    value: str = ""
+
+
+class PodNetworkWaitDurationParameter(BaseParameter):
+    """
+    Duration to wait for the scenario. Should be at least about
+    twice of test_duration.
+    """
+
+    krknhub_name: str = "WAIT_DURATION"
+    krknctl_name: str = "wait-duration"
+    value: int = 300
+
+    def mutate(self, test_duration: int = 120):
+        """Set wait duration to at least twice the test duration."""
+        self.value = max(300, test_duration * 2 + rng.randint(0, 60))
+
+
+class PodNetworkTestDurationParameter(BaseParameter):
+    """
+    Duration of the test run in seconds.
+    """
+
+    krknhub_name: str = "TEST_DURATION"
+    krknctl_name: str = "test-duration"
+    value: int = 120
+
+    def mutate(self):
+        """Mutate test duration between 30 and 300 seconds."""
+        self.value = rng.randint(30, 300)
