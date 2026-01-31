@@ -16,6 +16,7 @@ from krkn_ai.models.scenario.scenario_network import NetworkScenario
 from krkn_ai.models.scenario.scenario_dns_outage import DnsOutageScenario
 from krkn_ai.models.scenario.scenario_syn_flood import SynFloodScenario
 from krkn_ai.models.scenario.scenario_pvc import PVCScenario
+from krkn_ai.models.scenario.scenario_pod_network import PodNetworkChaosScenario
 from krkn_ai.models.cluster_components import (
     ClusterComponents,
     Namespace,
@@ -324,3 +325,123 @@ class TestPVCScenario:
 
         with pytest.raises(ScenarioParameterInitError, match="No namespaces found"):
             PVCScenario(cluster_components=cluster)
+
+
+class TestPodNetworkChaosScenario:
+    """Test PodNetworkChaosScenario class"""
+
+    def test_pod_network_chaos_initialization_with_labeled_pods(self):
+        """Test that PodNetworkChaosScenario initializes when pods with labels exist"""
+        pod = Pod(
+            name="test-pod",
+            labels={"app": "web", "version": "1.0"},
+            containers=[Container(name="container1")],
+        )
+        namespace = Namespace(name="test-ns", pods=[pod])
+        cluster = ClusterComponents(namespaces=[namespace], nodes=[])
+
+        scenario = PodNetworkChaosScenario(cluster_components=cluster)
+        assert scenario.name == "pod-network-chaos"
+        assert scenario.krknctl_name == "pod-network-chaos"
+        assert scenario.namespace.value == "test-ns"
+        assert scenario.traffic_type.value in [
+            "[ingress]",
+            "[egress]",
+            "[ingress,egress]",
+        ]
+        assert scenario.test_duration.value >= 30
+        assert scenario.wait_duration.value >= scenario.test_duration.value * 2
+
+    def test_pod_network_chaos_with_multiple_pods(self):
+        """Test PodNetworkChaosScenario with multiple pods"""
+        pods = [
+            Pod(
+                name="web-1",
+                labels={"app": "web", "tier": "frontend"},
+                containers=[Container(name="nginx")],
+            ),
+            Pod(
+                name="web-2",
+                labels={"app": "web", "tier": "frontend"},
+                containers=[Container(name="nginx")],
+            ),
+            Pod(
+                name="api-1",
+                labels={"app": "api", "tier": "backend"},
+                containers=[Container(name="api")],
+            ),
+        ]
+        namespace = Namespace(name="test-ns", pods=pods)
+        cluster = ClusterComponents(namespaces=[namespace], nodes=[])
+
+        scenario = PodNetworkChaosScenario(cluster_components=cluster)
+        assert scenario.name == "pod-network-chaos"
+        # Either pod_name or label_selector should be set
+        assert scenario.pod_name.value != "" or scenario.label_selector.value != ""
+        assert scenario.instance_count.value >= 1
+
+    def test_pod_network_chaos_raises_error_when_no_labeled_pods(self):
+        """Test PodNetworkChaosScenario raises error when no pods have labels"""
+        pod = Pod(name="test-pod", labels={}, containers=[])
+        namespace = Namespace(name="test-ns", pods=[pod])
+        cluster = ClusterComponents(namespaces=[namespace], nodes=[])
+
+        with pytest.raises(
+            ScenarioParameterInitError, match="No pods found with labels"
+        ):
+            PodNetworkChaosScenario(cluster_components=cluster)
+
+    def test_pod_network_chaos_raises_error_when_no_pods(self):
+        """Test PodNetworkChaosScenario raises error when no pods exist"""
+        namespace = Namespace(name="test-ns", pods=[])
+        cluster = ClusterComponents(namespaces=[namespace], nodes=[])
+
+        with pytest.raises(
+            ScenarioParameterInitError, match="No pods found with labels"
+        ):
+            PodNetworkChaosScenario(cluster_components=cluster)
+
+    def test_pod_network_chaos_parameters_list(self):
+        """Test that PodNetworkChaosScenario returns correct parameters list"""
+        pod = Pod(
+            name="test-pod",
+            labels={"app": "test"},
+            containers=[Container(name="container1")],
+        )
+        namespace = Namespace(name="test-ns", pods=[pod])
+        cluster = ClusterComponents(namespaces=[namespace], nodes=[])
+
+        scenario = PodNetworkChaosScenario(cluster_components=cluster)
+        params = scenario.parameters
+        assert len(params) == 11
+        param_names = [p.krknctl_name for p in params]
+        assert "namespace" in param_names
+        assert "image" in param_names
+        assert "label-selector" in param_names
+        assert "exclude-label" in param_names
+        assert "pod-name" in param_names
+        assert "instance-count" in param_names
+        assert "traffic-type" in param_names
+        assert "ingress-ports" in param_names
+        assert "egress-ports" in param_names
+        assert "wait-duration" in param_names
+        assert "test-duration" in param_names
+
+    def test_pod_network_chaos_traffic_types(self):
+        """Test that traffic type values are valid"""
+        pod = Pod(
+            name="test-pod",
+            labels={"app": "test"},
+            containers=[Container(name="container1")],
+        )
+        namespace = Namespace(name="test-ns", pods=[pod])
+        cluster = ClusterComponents(namespaces=[namespace], nodes=[])
+
+        # Run multiple times to test randomness
+        for _ in range(10):
+            scenario = PodNetworkChaosScenario(cluster_components=cluster)
+            assert scenario.traffic_type.value in [
+                "[ingress]",
+                "[egress]",
+                "[ingress,egress]",
+            ]
