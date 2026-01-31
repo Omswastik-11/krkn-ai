@@ -47,10 +47,6 @@ class KubevirtScenarioConfig(BaseModel):
     enable: bool = False
 
 
-class PodNetworkChaosScenarioConfig(BaseModel):
-    enable: bool = False
-
-
 class ScenarioConfig(BaseModel):
     application_outages: Optional[AppOutageScenarioConfig] = Field(
         alias="application-outages", default=None
@@ -85,9 +81,6 @@ class ScenarioConfig(BaseModel):
     )
     kubevirt_scenarios: Optional[KubevirtScenarioConfig] = Field(
         alias="kubevirt-scenarios", default=None
-    )
-    pod_network_chaos: Optional[PodNetworkChaosScenarioConfig] = Field(
-        alias="pod-network-chaos", default=None
     )
 
 
