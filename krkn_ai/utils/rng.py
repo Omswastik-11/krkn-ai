@@ -19,13 +19,13 @@ class RNG:
     def choices(self, items: List[Any], weights: List[float], k: int = 1):
         return list(self.rng.choice(items, p=weights, size=k))
 
-    def randint(self, low: int, high: int):
+    def randint(self, low: int, high: int) -> int:
         if low == high:
             return low
-        return self.rng.integers(low, high)
+        return int(self.rng.integers(low, high))
 
-    def uniform(self, low: float, high: float):
-        return self.rng.uniform(low, high)
+    def uniform(self, low: float, high: float) -> float:
+        return float(self.rng.uniform(low, high))
 
 
 rng = RNG()

@@ -47,6 +47,10 @@ class KubevirtScenarioConfig(BaseModel):
     enable: bool = False
 
 
+class NodeScenarioConfig(BaseModel):
+    enable: bool = False
+
+
 class ScenarioConfig(BaseModel):
     application_outages: Optional[AppOutageScenarioConfig] = Field(
         alias="application-outages", default=None
@@ -81,6 +85,9 @@ class ScenarioConfig(BaseModel):
     )
     kubevirt_scenarios: Optional[KubevirtScenarioConfig] = Field(
         alias="kubevirt-scenarios", default=None
+    )
+    node_scenarios: Optional[NodeScenarioConfig] = Field(
+        alias="node-scenarios", default=None
     )
 
 

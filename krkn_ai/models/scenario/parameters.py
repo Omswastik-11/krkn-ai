@@ -1,4 +1,5 @@
 import math
+from typing import ClassVar, List
 from pydantic import BaseModel, Field
 from krkn_ai.utils.rng import rng
 from krkn_ai.models.scenario.base import BaseParameter
@@ -513,3 +514,183 @@ class KillCountParameter(BaseParameter):
     krknhub_name: str = "KILL_COUNT"
     krknctl_name: str = "kill-count"
     value: int = 1
+
+
+# Node Scenario Parameters
+class NodeScenarioActionParameter(BaseParameter):
+    """
+    Action performed on the node. Available actions:
+    - node_start_scenario: Start a stopped node
+    - node_stop_scenario: Stop a running node
+    - node_stop_start_scenario: Stop and then start a node
+    - node_termination_scenario: Terminate a node
+    - node_reboot_scenario: Reboot a node
+    - stop_kubelet_scenario: Stop kubelet service
+    - stop_start_kubelet_scenario: Stop and start kubelet service
+    - restart_kubelet_scenario: Restart kubelet service
+    - node_crash_scenario: Crash a node
+    - stop_start_helper_node_scenario: Stop and start helper node
+    """
+
+    krknhub_name: str = "ACTION"
+    krknctl_name: str = "action"
+    value: str = "node_stop_start_scenario"
+
+    # Actions that are generally safe for cloud environments
+    CLOUD_ACTIONS: ClassVar[List[str]] = [
+        "node_stop_scenario",
+        "node_stop_start_scenario",
+        "node_termination_scenario",
+        "node_reboot_scenario",
+    ]
+
+    # Actions for kubelet manipulation (work on any environment)
+    KUBELET_ACTIONS: ClassVar[List[str]] = [
+        "stop_kubelet_scenario",
+        "stop_start_kubelet_scenario",
+        "restart_kubelet_scenario",
+    ]
+
+    # All available actions
+    ALL_ACTIONS: ClassVar[List[str]] = (
+        CLOUD_ACTIONS
+        + KUBELET_ACTIONS
+        + [
+            "node_start_scenario",
+            "node_crash_scenario",
+            "stop_start_helper_node_scenario",
+        ]
+    )
+
+    def mutate(self, cloud_type: str = "aws"):
+        """
+        Mutate the action based on cloud type.
+        For cloud environments, prefer cloud-specific actions.
+        For baremetal or unknown, prefer kubelet actions.
+        """
+        if cloud_type in ["aws", "gcp", "azure", "ibmcloud", "vmware"]:
+            # For cloud environments, choose from cloud actions + kubelet actions
+            available_actions = self.CLOUD_ACTIONS + self.KUBELET_ACTIONS
+        else:
+            # For baremetal or unknown, prefer kubelet actions
+            available_actions = self.KUBELET_ACTIONS
+        self.value = rng.choice(available_actions)
+
+
+class NodeScenarioLabelSelectorParameter(BaseParameter):
+    """
+    Node label to target for the scenario.
+    Example: node-role.kubernetes.io/worker
+    """
+
+    krknhub_name: str = "LABEL_SELECTOR"
+    krknctl_name: str = "label-selector"
+    value: str = "node-role.kubernetes.io/worker"
+
+
+class NodeScenarioExcludeLabelParameter(BaseParameter):
+    """
+    Excludes nodes marked by this label from chaos.
+    """
+
+    krknhub_name: str = "EXCLUDE_LABEL"
+    krknctl_name: str = "exclude-label"
+    value: str = ""
+
+
+class NodeScenarioNodeNameParameter(BaseParameter):
+    """
+    Node name to inject faults in case of targeting a specific node.
+    Can set multiple node names separated by a comma.
+    """
+
+    krknhub_name: str = "NODE_NAME"
+    krknctl_name: str = "node-name"
+    value: str = ""
+
+
+class NodeScenarioInstanceCountParameter(BaseParameter):
+    """
+    Targeted instance count matching the label selector.
+    """
+
+    krknhub_name: str = "INSTANCE_COUNT"
+    krknctl_name: str = "instance-count"
+    value: int = 1
+
+    def mutate(self, max_count: int = 1):
+        """Mutate the instance count between 1 and max_count."""
+        self.value = rng.randint(1, max(1, max_count))
+
+
+class NodeScenarioRunsParameter(BaseParameter):
+    """
+    Iterations to perform action on a single node.
+    """
+
+    krknhub_name: str = "RUNS"
+    krknctl_name: str = "runs"
+    value: int = 1
+
+    def mutate(self):
+        """Mutate runs between 1 and 3."""
+        self.value = rng.randint(1, 3)
+
+
+class NodeScenarioCloudTypeParameter(BaseParameter):
+    """
+    Cloud platform on top of which cluster is running.
+    Supported platforms: aws, azure, gcp, vmware, ibmcloud, bm (baremetal)
+    """
+
+    krknhub_name: str = "CLOUD_TYPE"
+    krknctl_name: str = "cloud-type"
+    value: str = "aws"
+
+    SUPPORTED_CLOUD_TYPES: ClassVar[List[str]] = [
+        "aws",
+        "azure",
+        "gcp",
+        "vmware",
+        "ibmcloud",
+        "bm",
+    ]
+
+
+class NodeScenarioKubeCheckParameter(BaseParameter):
+    """
+    Connecting to the kubernetes api to check the node status.
+    Set to False for SNO (Single Node OpenShift).
+    """
+
+    krknhub_name: str = "KUBE_CHECK"
+    krknctl_name: str = "kube-check"
+    value: str = "true"
+
+
+class NodeScenarioTimeoutParameter(BaseParameter):
+    """
+    Duration to wait for completion of node scenario injection.
+    """
+
+    krknhub_name: str = "TIMEOUT"
+    krknctl_name: str = "timeout"
+    value: int = 180
+
+    def mutate(self):
+        """Mutate timeout between 60 and 300 seconds."""
+        self.value = rng.randint(60, 300)
+
+
+class NodeScenarioDurationParameter(BaseParameter):
+    """
+    Duration for the node scenario.
+    """
+
+    krknhub_name: str = "DURATION"
+    krknctl_name: str = "duration"
+    value: int = 120
+
+    def mutate(self):
+        """Mutate duration between 30 and 300 seconds."""
+        self.value = rng.randint(30, 300)

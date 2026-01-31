@@ -16,6 +16,7 @@ from krkn_ai.models.scenario.scenario_network import NetworkScenario
 from krkn_ai.models.scenario.scenario_dns_outage import DnsOutageScenario
 from krkn_ai.models.scenario.scenario_syn_flood import SynFloodScenario
 from krkn_ai.models.scenario.scenario_pvc import PVCScenario
+from krkn_ai.models.scenario.scenario_node import NodeScenario
 from krkn_ai.models.cluster_components import (
     ClusterComponents,
     Namespace,
@@ -324,3 +325,92 @@ class TestPVCScenario:
 
         with pytest.raises(ScenarioParameterInitError, match="No namespaces found"):
             PVCScenario(cluster_components=cluster)
+
+
+class TestNodeScenario:
+    """Test NodeScenario class"""
+
+    def test_node_scenario_initialization_with_nodes(self):
+        """Test that NodeScenario initializes when nodes exist"""
+        node = Node(
+            name="test-node",
+            labels={"node-role.kubernetes.io/worker": "true"},
+            free_cpu=4.0,
+            free_mem=8.0,
+        )
+        cluster = ClusterComponents(namespaces=[], nodes=[node])
+
+        scenario = NodeScenario(cluster_components=cluster)
+        assert scenario.name == "node-scenarios"
+        assert scenario.krknctl_name == "node-scenarios"
+        assert scenario.action.value in scenario.action.ALL_ACTIONS
+        assert scenario.instance_count.value >= 1
+        assert scenario.runs.value >= 1
+        assert scenario.timeout.value >= 60
+        assert scenario.duration.value >= 30
+
+    def test_node_scenario_initialization_with_multiple_nodes(self):
+        """Test that NodeScenario works with multiple nodes"""
+        nodes = [
+            Node(
+                name="worker-1",
+                labels={"node-role.kubernetes.io/worker": "true", "zone": "us-east-1a"},
+            ),
+            Node(
+                name="worker-2",
+                labels={"node-role.kubernetes.io/worker": "true", "zone": "us-east-1b"},
+            ),
+            Node(
+                name="worker-3",
+                labels={"node-role.kubernetes.io/worker": "true", "zone": "us-east-1c"},
+            ),
+        ]
+        cluster = ClusterComponents(namespaces=[], nodes=nodes)
+
+        scenario = NodeScenario(cluster_components=cluster)
+        assert scenario.name == "node-scenarios"
+        # Either node_name or label_selector should be set
+        assert scenario.node_name.value != "" or scenario.label_selector.value != ""
+
+    def test_node_scenario_raises_error_when_no_nodes(self):
+        """Test that NodeScenario raises error when no nodes exist"""
+        cluster = ClusterComponents(namespaces=[], nodes=[])
+
+        with pytest.raises(ScenarioParameterInitError, match="No nodes found"):
+            NodeScenario(cluster_components=cluster)
+
+    def test_node_scenario_parameters_list(self):
+        """Test that NodeScenario returns correct parameters list"""
+        node = Node(name="test-node", labels={"app": "test"})
+        cluster = ClusterComponents(namespaces=[], nodes=[node])
+
+        scenario = NodeScenario(cluster_components=cluster)
+        params = scenario.parameters
+        assert len(params) == 10
+        param_names = [p.krknctl_name for p in params]
+        assert "action" in param_names
+        assert "label-selector" in param_names
+        assert "node-name" in param_names
+        assert "instance-count" in param_names
+        assert "runs" in param_names
+        assert "cloud-type" in param_names
+        assert "timeout" in param_names
+        assert "duration" in param_names
+
+    def test_node_scenario_action_types(self):
+        """Test that NodeScenario action values are valid"""
+        node = Node(name="test-node", labels={"type": "worker"})
+        cluster = ClusterComponents(namespaces=[], nodes=[node])
+
+        # Run multiple times to test randomness
+        for _ in range(10):
+            scenario = NodeScenario(cluster_components=cluster)
+            assert scenario.action.value in scenario.action.ALL_ACTIONS
+
+    def test_node_scenario_cloud_type_default(self):
+        """Test that NodeScenario has correct default cloud type"""
+        node = Node(name="test-node", labels={})
+        cluster = ClusterComponents(namespaces=[], nodes=[node])
+
+        scenario = NodeScenario(cluster_components=cluster)
+        assert scenario.cloud_type.value in scenario.cloud_type.SUPPORTED_CLOUD_TYPES
