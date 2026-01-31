@@ -26,7 +26,6 @@ An intelligent chaos engineering framework that uses genetic algorithms to optim
 - Python 3.9+
 - `uv` package manager (recommended) or `pip`
 - [podman](https://podman.io/)
-- [helm](https://helm.sh/docs/intro/install/)
 - Kubernetes cluster access file (kubeconfig)
 
 ### Setup Virtual Environment
@@ -53,7 +52,6 @@ For demonstration purposes, deploy the robot-shop microservice:
 ```bash
 export DEMO_NAMESPACE=robot-shop
 export IS_OPENSHIFT=true
-#set IS_OPENSHIFT=false for kubernetes cluster
 ./scripts/setup-demo-microservice.sh
 
 # Set context to the demo namespace
@@ -90,9 +88,6 @@ uv run krkn_ai discover -k ./tmp/kubeconfig.yaml \
 ```yaml
 # Path to your kubeconfig file
 kubeconfig_file_path: "./tmp/kubeconfig.yaml"
-
-# Optional: Random seed for reproducible runs
-# seed: 42
 
 # Genetic algorithm parameters
 generations: 5

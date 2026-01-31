@@ -81,19 +81,12 @@ class TestGeneticAlgorithmCoreMethods:
                         genetic_algorithm.health_check_reporter,
                         "sort_fitness_result_csv",
                     ) as mock_sort:
-                        with patch(
-                            "krkn_ai.algorithm.genetic.JSONSummaryReporter"
-                        ) as mock_summary_reporter:
-                            mock_reporter_instance = Mock()
-                            mock_summary_reporter.return_value = mock_reporter_instance
-                            genetic_algorithm.best_of_generation = [Mock()]
-                            genetic_algorithm.seen_population = {Mock(): Mock()}
-                            genetic_algorithm.save()
+                        genetic_algorithm.best_of_generation = [Mock()]
+                        genetic_algorithm.seen_population = {Mock(): Mock()}
+                        genetic_algorithm.save()
 
-                            # Verify all reporter methods are called
-                            assert mock_save_gen.called
-                            assert mock_graph.called
-                            assert mock_save_report.called
-                            assert mock_sort.called
-                            assert mock_summary_reporter.called
-                            assert mock_reporter_instance.save.called
+                        # Verify all reporter methods are called
+                        assert mock_save_gen.called
+                        assert mock_graph.called
+                        assert mock_save_report.called
+                        assert mock_sort.called
