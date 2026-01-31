@@ -89,6 +89,17 @@ class NodeScenario(Scenario):
                 "No nodes found in cluster components for node-scenarios"
             )
 
+        # Filter out nodes with exclude_label if specified
+        if self.exclude_label.value:
+            nodes = [
+                node for node in nodes if self.exclude_label.value not in node.labels
+            ]
+
+        if len(nodes) == 0:
+            raise ScenarioParameterInitError(
+                "No eligible nodes found after applying exclude_label filter"
+            )
+
         all_node_labels = Counter()
         for node in nodes:
             for label, value in node.labels.items():
@@ -112,7 +123,7 @@ class NodeScenario(Scenario):
 
     def _select_by_node_name(self, nodes: List[Node]):
         # Select 1-3 random nodes (or all if fewer available)
-        num_nodes = rng.randint(1, min(3, len(nodes)))
+        num_nodes = rng.randint(1, min(3, len(nodes)) + 1)
 
         # Shuffle and select the first num_nodes
         shuffled_indices = list(range(len(nodes)))
