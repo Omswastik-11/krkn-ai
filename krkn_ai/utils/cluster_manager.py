@@ -93,9 +93,7 @@ class ClusterManager:
         matcher = PatternMatcher.from_string(namespace_pattern, default_match_all=False)
 
         if matcher.is_empty():
-            logger.debug(
-                "No namespace pattern provided, returning empty list "
-            )
+            logger.debug("No namespace pattern provided, returning empty list ")
             return []
 
         namespaces = self.krkn_k8s.list_namespaces()

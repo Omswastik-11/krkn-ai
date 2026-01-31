@@ -260,7 +260,9 @@ class TestClusterManager:
         ]
 
         # Include openshift-.* but exclude openshift-operators
-        namespaces = cluster_manager.list_namespaces("openshift-.*,!openshift-operators")
+        namespaces = cluster_manager.list_namespaces(
+            "openshift-.*,!openshift-operators"
+        )
         assert len(namespaces) == 2
         assert {ns.name for ns in namespaces} == {
             "openshift-monitoring",
