@@ -14,6 +14,7 @@ from krkn_ai.models.scenario.scenario_io_hog import NodeIOHogScenario
 from krkn_ai.models.scenario.scenario_time import TimeScenario
 from krkn_ai.models.scenario.scenario_network import NetworkScenario
 from krkn_ai.models.scenario.scenario_dns_outage import DnsOutageScenario
+from krkn_ai.models.scenario.scenario_network_chaos_ng import NetworkChaosNGScenario
 from krkn_ai.models.scenario.scenario_syn_flood import SynFloodScenario
 from krkn_ai.models.scenario.scenario_pvc import PVCScenario
 from krkn_ai.models.cluster_components import (
@@ -247,6 +248,43 @@ class TestNetworkScenario:
             ScenarioParameterInitError, match="No nodes found with interfaces"
         ):
             NetworkScenario(cluster_components=cluster)
+
+
+class TestNetworkChaosNGScenario:
+    """Test NetworkChaosNGScenario class"""
+
+    def test_network_chaos_ng_pod_filter_with_pods(self):
+        """Test that NetworkChaosNGScenario initializes pod filter when pods exist"""
+        pod = Pod(name="test-pod", labels={"app": "web"}, containers=[])
+        namespace = Namespace(name="test-ns", pods=[pod])
+        cluster = ClusterComponents(namespaces=[namespace], nodes=[])
+
+        scenario = NetworkChaosNGScenario(cluster_components=cluster)
+        assert scenario.name == "pod-network-filter"
+        assert scenario.namespace.value == "test-ns"
+        assert scenario.pod_selector.value or scenario.pod_name.value
+        assert scenario.ports.value != ""
+
+    def test_network_chaos_ng_node_filter_with_nodes(self):
+        """Test that NetworkChaosNGScenario initializes node filter when nodes exist"""
+        node = Node(
+            name="test-node",
+            labels={"node-role.kubernetes.io/worker": ""},
+            interfaces=["eth0"],
+        )
+        cluster = ClusterComponents(namespaces=[], nodes=[node])
+
+        scenario = NetworkChaosNGScenario(cluster_components=cluster)
+        assert scenario.name == "node-network-filter"
+        assert scenario.node_selector.value or scenario.node_name.value
+        assert scenario.ports.value != ""
+
+    def test_network_chaos_ng_raises_error_when_no_targets(self):
+        """Test that NetworkChaosNGScenario raises error when no pods or nodes exist"""
+        cluster = ClusterComponents(namespaces=[], nodes=[])
+
+        with pytest.raises(ScenarioParameterInitError, match="No pods or nodes found"):
+            NetworkChaosNGScenario(cluster_components=cluster)
 
 
 class TestDnsOutageScenario:

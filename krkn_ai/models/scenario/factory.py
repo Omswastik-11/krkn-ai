@@ -8,6 +8,7 @@ from krkn_ai.models.custom_errors import (
 )
 from krkn_ai.models.scenario.base import Scenario
 from krkn_ai.models.scenario.scenario_network import NetworkScenario
+from krkn_ai.models.scenario.scenario_network_chaos_ng import NetworkChaosNGScenario
 from krkn_ai.utils.logger import get_logger
 from krkn_ai.utils.rng import rng
 from krkn_ai.utils.pvc_utils import initialize_kubeconfig
@@ -36,6 +37,7 @@ scenario_specs = [
     ("node_io_hog", NodeIOHogScenario),
     ("time_scenarios", TimeScenario),
     ("network_scenarios", NetworkScenario),
+    ("network_chaos_ng_scenarios", NetworkChaosNGScenario),
     ("dns_outage", DnsOutageScenario),
     ("syn_flood", SynFloodScenario),
     ("pvc_scenarios", PVCScenario),

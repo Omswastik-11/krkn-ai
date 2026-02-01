@@ -31,6 +31,10 @@ class NetworkScenarioConfig(BaseModel):
     enable: bool = False
 
 
+class NetworkChaosNGScenarioConfig(BaseModel):
+    enable: bool = False
+
+
 class DnsOutageScenarioConfig(BaseModel):
     enable: bool = False
 
@@ -71,6 +75,9 @@ class ScenarioConfig(BaseModel):
     )
     network_scenarios: Optional[NetworkScenarioConfig] = Field(
         alias="network-scenarios", default=None
+    )
+    network_chaos_ng_scenarios: Optional[NetworkChaosNGScenarioConfig] = Field(
+        alias="network-chaos-ng-scenarios", default=None
     )
     dns_outage: Optional[DnsOutageScenarioConfig] = Field(
         alias="dns-outage", default=None

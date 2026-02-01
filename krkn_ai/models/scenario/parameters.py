@@ -305,6 +305,30 @@ class NetworkScenarioTargetNodeInterfaceParameter(BaseParameter):
     value: str = "{}"
 
 
+class NetworkChaosNGImageParameter(BaseParameter):
+    krknhub_name: str = "IMAGE"
+    krknctl_name: str = "image"
+    value: str = "quay.io/krkn-chaos/krkn-network-chaos:latest"
+
+
+class NetworkChaosNGProtocolsParameter(BaseParameter):
+    krknhub_name: str = "PROTOCOLS"
+    krknctl_name: str = "protocols"
+    value: str = "tcp"
+
+
+class NetworkChaosNGPortsParameter(BaseParameter):
+    krknhub_name: str = "PORTS"
+    krknctl_name: str = "ports"
+    value: str = "80"
+
+
+class InstanceCountParameter(BaseParameter):
+    krknhub_name: str = "INSTANCE_COUNT"
+    krknctl_name: str = "instance-count"
+    value: int = 1
+
+
 class DNSOutageDurationParameter(BaseParameter):
     krknhub_name: str = "TEST_DURATION"
     krknctl_name: str = "chaos-duration"
