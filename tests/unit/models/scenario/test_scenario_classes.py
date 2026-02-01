@@ -16,6 +16,10 @@ from krkn_ai.models.scenario.scenario_network import NetworkScenario
 from krkn_ai.models.scenario.scenario_dns_outage import DnsOutageScenario
 from krkn_ai.models.scenario.scenario_syn_flood import SynFloodScenario
 from krkn_ai.models.scenario.scenario_pvc import PVCScenario
+from krkn_ai.models.scenario.scenario_service_disruption import (
+    ServiceDisruptionScenario,
+)
+from krkn_ai.models.scenario.scenario_service_hijacking import ServiceHijackingScenario
 from krkn_ai.models.cluster_components import (
     ClusterComponents,
     Namespace,
@@ -324,3 +328,80 @@ class TestPVCScenario:
 
         with pytest.raises(ScenarioParameterInitError, match="No namespaces found"):
             PVCScenario(cluster_components=cluster)
+
+
+class TestServiceDisruptionScenario:
+    """Test ServiceDisruptionScenario class"""
+
+    def test_service_disruption_scenario_initialization_with_namespaces(self):
+        """Test that ServiceDisruptionScenario initializes when namespaces exist"""
+        namespace = Namespace(name="test-ns", labels={"env": "test"})
+        cluster = ClusterComponents(namespaces=[namespace], nodes=[])
+
+        scenario = ServiceDisruptionScenario(cluster_components=cluster)
+        assert scenario.name == "service-disruption-scenarios"
+        assert scenario.krknctl_name == "service-disruption-scenarios"
+        # Either namespace or label_selector should be set
+        assert scenario.namespace.value or scenario.label_selector.value
+        assert scenario.delete_count.value >= 1
+        assert scenario.runs.value >= 1
+
+    def test_service_disruption_scenario_uses_namespace(self):
+        """Test that ServiceDisruptionScenario can use namespace parameter"""
+        namespace = Namespace(name="default", labels={})
+        cluster = ClusterComponents(namespaces=[namespace], nodes=[])
+
+        scenario = ServiceDisruptionScenario(cluster_components=cluster)
+        # Since namespace has no labels, it should use namespace directly
+        assert scenario.namespace.value == "default"
+        assert scenario.label_selector.value == ""
+
+    def test_service_disruption_scenario_raises_error_when_no_namespaces(self):
+        """Test that ServiceDisruptionScenario raises error when no namespaces exist"""
+        cluster = ClusterComponents(namespaces=[], nodes=[])
+
+        with pytest.raises(ScenarioParameterInitError, match="No namespaces found"):
+            ServiceDisruptionScenario(cluster_components=cluster)
+
+
+class TestServiceHijackingScenario:
+    """Test ServiceHijackingScenario class"""
+
+    def test_service_hijacking_scenario_initialization_with_services(self):
+        """Test that ServiceHijackingScenario initializes when services exist"""
+        service = Service(
+            name="nginx-service",
+            ports=[ServicePort(port=80, target_port=8080)],
+        )
+        namespace = Namespace(name="default", services=[service])
+        cluster = ClusterComponents(namespaces=[namespace], nodes=[])
+
+        scenario = ServiceHijackingScenario(cluster_components=cluster)
+        assert scenario.name == "service-hijacking"
+        assert scenario.krknctl_name == "service-hijacking"
+        assert scenario.service_namespace.value == "default"
+        assert scenario.service_name.value == "nginx-service"
+        assert scenario.service_target_port.value == "80"
+        assert (
+            scenario.image.value == "quay.io/krkn-chaos/krkn-service-hijacking:v0.1.3"
+        )
+        assert scenario.chaos_duration.value >= 1
+
+    def test_service_hijacking_scenario_handles_unnamed_ports(self):
+        """Test that ServiceHijackingScenario handles services with unnamed ports"""
+        service = Service(
+            name="test-service",
+            ports=[ServicePort(port=8080, target_port=8080)],
+        )
+        namespace = Namespace(name="test-ns", services=[service])
+        cluster = ClusterComponents(namespaces=[namespace], nodes=[])
+
+        scenario = ServiceHijackingScenario(cluster_components=cluster)
+        assert scenario.service_target_port.value == "8080"
+
+    def test_service_hijacking_scenario_raises_error_when_no_services(self):
+        """Test that ServiceHijackingScenario raises error when no services exist"""
+        cluster = ClusterComponents(namespaces=[], nodes=[])
+
+        with pytest.raises(ScenarioParameterInitError, match="No services found"):
+            ServiceHijackingScenario(cluster_components=cluster)

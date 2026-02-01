@@ -24,6 +24,10 @@ from krkn_ai.models.scenario.scenario_syn_flood import SynFloodScenario
 from krkn_ai.models.scenario.scenario_io_hog import NodeIOHogScenario
 from krkn_ai.models.scenario.scenario_pvc import PVCScenario
 from krkn_ai.models.scenario.scenario_kubevirt import KubevirtDisruptionScenario
+from krkn_ai.models.scenario.scenario_service_disruption import (
+    ServiceDisruptionScenario,
+)
+from krkn_ai.models.scenario.scenario_service_hijacking import ServiceHijackingScenario
 
 logger = get_logger(__name__)
 
@@ -40,6 +44,8 @@ scenario_specs = [
     ("syn_flood", SynFloodScenario),
     ("pvc_scenarios", PVCScenario),
     ("kubevirt_scenarios", KubevirtDisruptionScenario),
+    ("service_disruption_scenarios", ServiceDisruptionScenario),
+    ("service_hijacking_scenarios", ServiceHijackingScenario),
 ]
 
 

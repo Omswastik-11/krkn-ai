@@ -47,6 +47,14 @@ class KubevirtScenarioConfig(BaseModel):
     enable: bool = False
 
 
+class ServiceDisruptionScenarioConfig(BaseModel):
+    enable: bool = False
+
+
+class ServiceHijackingScenarioConfig(BaseModel):
+    enable: bool = False
+
+
 class ScenarioConfig(BaseModel):
     application_outages: Optional[AppOutageScenarioConfig] = Field(
         alias="application-outages", default=None
@@ -81,6 +89,12 @@ class ScenarioConfig(BaseModel):
     )
     kubevirt_scenarios: Optional[KubevirtScenarioConfig] = Field(
         alias="kubevirt-scenarios", default=None
+    )
+    service_disruption_scenarios: Optional[ServiceDisruptionScenarioConfig] = Field(
+        alias="service-disruption-scenarios", default=None
+    )
+    service_hijacking_scenarios: Optional[ServiceHijackingScenarioConfig] = Field(
+        alias="service-hijacking-scenarios", default=None
     )
 
 

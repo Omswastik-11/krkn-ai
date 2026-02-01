@@ -513,3 +513,75 @@ class KillCountParameter(BaseParameter):
     krknhub_name: str = "KILL_COUNT"
     krknctl_name: str = "kill-count"
     value: int = 1
+
+
+class ServiceDisruptionNamespaceParameter(BaseParameter):
+    krknhub_name: str = "NAMESPACE"
+    krknctl_name: str = "namespace"
+    value: str = ""
+
+
+class ServiceDisruptionLabelSelectorParameter(BaseParameter):
+    krknhub_name: str = "LABEL_SELECTOR"
+    krknctl_name: str = "label-selector"
+    value: str = ""
+
+
+class ServiceDisruptionDeleteCountParameter(BaseParameter):
+    krknhub_name: str = "DELETE_COUNT"
+    krknctl_name: str = "delete-count"
+    value: int = 1
+
+    def mutate(self):
+        self.value = rng.randint(1, 3)
+
+
+class ServiceDisruptionRunsParameter(BaseParameter):
+    krknhub_name: str = "RUNS"
+    krknctl_name: str = "runs"
+    value: int = 1
+
+    def mutate(self):
+        self.value = rng.randint(1, 3)
+
+
+class ServiceHijackingServiceNameParameter(BaseParameter):
+    krknhub_name: str = "SERVICE_NAME"
+    krknctl_name: str = "service-name"
+    value: str = ""
+
+
+class ServiceHijackingServiceNamespaceParameter(BaseParameter):
+    krknhub_name: str = "SERVICE_NAMESPACE"
+    krknctl_name: str = "service-namespace"
+    value: str = ""
+
+
+class ServiceHijackingTargetPortParameter(BaseParameter):
+    krknhub_name: str = "SERVICE_TARGET_PORT"
+    krknctl_name: str = "service-target-port"
+    value: str = ""
+
+
+class ServiceHijackingImageParameter(BaseParameter):
+    krknhub_name: str = "IMAGE"
+    krknctl_name: str = "image"
+    value: str = "quay.io/krkn-chaos/krkn-service-hijacking:v0.1.3"
+
+
+class ServiceHijackingChaosDurationParameter(BaseParameter):
+    krknhub_name: str = "CHAOS_DURATION"
+    krknctl_name: str = "chaos-duration"
+    value: int = 30
+
+
+class ServiceHijackingPrivilegedParameter(BaseParameter):
+    krknhub_name: str = "PRIVILEGED"
+    krknctl_name: str = "privileged"
+    value: str = "True"
+
+
+class ServiceHijackingScenarioFilePathParameter(BaseParameter):
+    krknhub_name: str = "SCENARIO_FILE"
+    krknctl_name: str = "scenario-file-path"
+    value: str = ""
