@@ -174,8 +174,9 @@ class NetworkChaosNGScenario(Scenario):
         seen = set()
         for node in nodes:
             for taint in node.taints:
-                if taint not in seen:
-                    seen.add(taint)
+                taint_tuple = tuple(sorted(taint.items()))
+                if taint_tuple not in seen:
+                    seen.add(taint_tuple)
                     all_taints.append(taint)
         return json.dumps(all_taints) if all_taints else "[]"
 
