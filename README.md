@@ -87,6 +87,34 @@ uv run krkn_ai discover -k ./tmp/kubeconfig.yaml \
   --skip-pod-name "nginx-proxy.*"
 ```
 
+### Pattern Syntax for Filtering
+
+The `-n` (namespace), `-pl` (pod-label), `-nl` (node-label), and `--skip-pod-name` options support flexible pattern matching:
+
+| Pattern | Description |
+|---------|-------------|
+| `robot-shop` | Match exactly "robot-shop" |
+| `robot-shop,default` | Match "robot-shop" OR "default" |
+| `openshift-.*` | Regex: match namespaces starting with "openshift-" |
+| `*` | Match all |
+| `!kube-system` | Match all EXCEPT "kube-system" |
+| `*,!kube-.*` | Match all except kube-* namespaces |
+| `openshift-.*,!openshift-operators` | Match openshift-* but exclude operators |
+
+**Examples:**
+
+```bash
+# Discover in all namespaces except kube-system and openshift-*
+uv run krkn_ai discover -k ./tmp/kubeconfig.yaml \
+  -n "!kube-system,!openshift-.*" \
+  -o ./tmp/krkn-ai.yaml
+
+# Discover in openshift namespaces but exclude operators
+uv run krkn_ai discover -k ./tmp/kubeconfig.yaml \
+  -n "openshift-.*,!openshift-operators" \
+  -o ./tmp/krkn-ai.yaml
+```
+
 ```yaml
 # Path to your kubeconfig file
 kubeconfig_file_path: "./tmp/kubeconfig.yaml"
