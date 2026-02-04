@@ -1,11 +1,12 @@
 import os
 import copy
+import datetime
 import json
 import time
 import uuid
 from typing_extensions import Dict
 import yaml
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from krkn_ai.models.app import CommandRunResult, KrknRunnerType
 
@@ -20,6 +21,7 @@ from krkn_ai.models.scenario.factory import ScenarioFactory
 from krkn_ai.models.config import ConfigFile
 from krkn_ai.reporter.generations_reporter import GenerationsReporter
 from krkn_ai.reporter.health_check_reporter import HealthCheckReporter
+from krkn_ai.reporter.json_summary_reporter import JSONSummaryReporter
 from krkn_ai.utils.logger import get_logger
 from krkn_ai.chaos_engines.krkn_runner import KrknRunner
 from krkn_ai.utils.rng import rng
@@ -42,15 +44,32 @@ class GeneticAlgorithm:
         format: str,
         runner_type: KrknRunnerType = None,
     ):
+        self.output_dir = output_dir
+        self.config = config
+        self.format = format
+
+        # Initialize RNG with seed for reproducibility
+        rng.set_seed(self.config.seed)
+        if self.config.seed is not None:
+            logger.info("Random seed: %s (reproducible mode)", self.config.seed)
+        else:
+            logger.info("Random seed: None (non-reproducible mode)")
+
         self.krkn_client = KrknRunner(
             config, output_dir=output_dir, runner_type=runner_type
         )
-        self.output_dir = output_dir
-        self.config = config
         self.population: List[BaseScenario] = []
-        self.format = format
 
         self.stagnant_generations = 0
+        self.saturation_stagnant_generations = (
+            0  # Track stagnation for stopping criteria
+        )
+        self.exploration_stagnant_generations = (
+            0  # Track generations with no new scenarios
+        )
+        self.new_scenarios_in_generation = (
+            0  # Track new scenarios discovered in current generation
+        )
 
         self.valid_scenarios = ScenarioFactory.generate_valid_scenarios(
             self.config
@@ -72,6 +91,12 @@ class GeneticAlgorithm:
         # Generate unique run UUID for this experiment
         self.run_uuid = str(uuid.uuid4())
         logger.info("Krkn-AI run UUID: %s", self.run_uuid)
+
+        # Track run metadata for results summary
+        self.start_time: Optional[datetime.datetime] = None
+        self.end_time: Optional[datetime.datetime] = None
+        self.seed: Optional[int] = None  # Seed can be set externally if needed
+        self.completed_generations: int = 0
 
         if self.config.population_size < 2:
             raise PopulationSizeError("Population size should be at least 2")
@@ -97,6 +122,7 @@ class GeneticAlgorithm:
         self.population = self.create_population(self.config.population_size)
 
         # Variables to track the progress of the algorithm
+        self.start_time = datetime.datetime.now(datetime.timezone.utc)
         start_time = time.time()
         cur_generation = 0
 
@@ -104,41 +130,18 @@ class GeneticAlgorithm:
             # Calculate elapsed time since the start of the algorithm
             elapsed_time = time.time() - start_time
 
-            # Check generation limit if duration is not set
-            if (
-                self.config.duration is None
-                and cur_generation >= self.config.generations
-            ):
-                logger.info(
-                    "Completed %d generations in %s",
-                    cur_generation,
-                    format_duration(elapsed_time),
-                )
+            # Check all stopping criteria before processing generation
+            if self._check_and_stop(cur_generation, elapsed_time):
                 break
 
-            # Check if duration has been exceeded
+            # Log remaining time if duration is set
             if self.config.duration is not None:
-                if elapsed_time >= self.config.duration:
-                    logger.info(
-                        "Duration limit reached (%d seconds). Stopping algorithm.",
-                        self.config.duration,
-                    )
-                    logger.info(
-                        "Completed %d generations in %s",
-                        cur_generation,
-                        format_duration(elapsed_time),
-                    )
-                    break
                 remaining_time = self.config.duration - elapsed_time
                 logger.debug(
                     "Elapsed time: %s, Remaining: %s",
                     format_duration(elapsed_time),
                     format_duration(remaining_time),
                 )
-
-            if len(self.population) == 0:
-                logger.warning("No more population found, stopping generations.")
-                break
 
             logger.info("| Population |")
             logger.info("--------------------------------------------------------")
@@ -167,6 +170,18 @@ class GeneticAlgorithm:
             )
 
             self.adapt_mutation_rate()
+
+            # Update tracking for stopping criteria
+            self.update_saturation_tracking()
+            self.update_exploration_tracking()
+
+            # Increment generation counter after evaluation
+            cur_generation += 1
+
+            # Check stopping criteria after fitness evaluation (for fitness threshold, saturation, and exploration)
+            elapsed_after_eval = time.time() - start_time
+            if self._check_and_stop(cur_generation, elapsed_after_eval):
+                break
 
             # Repopulate off-springs
             self.population = []
@@ -202,8 +217,6 @@ class GeneticAlgorithm:
                 self.population.extend(
                     self.create_population(self.config.population_injection_size)
                 )
-
-            cur_generation += 1
 
     def adapt_mutation_rate(self):
         cfg = self.config.adaptive_mutation
@@ -243,6 +256,190 @@ class GeneticAlgorithm:
         )
 
         self.stagnant_generations = 0
+
+    def _check_and_stop(self, cur_generation: int, elapsed_time: float) -> bool:
+        """
+        Helper method to check stopping criteria and log if stopping.
+
+        Args:
+            cur_generation: Current generation number
+            elapsed_time: Time elapsed since algorithm start (in seconds)
+
+        Returns:
+            True if algorithm should stop, False otherwise
+        """
+        should_stop, reason = self.should_stop(cur_generation, elapsed_time)
+        if should_stop:
+            logger.info("Stopping algorithm: %s", reason)
+            logger.info(
+                "Completed %d generations in %s",
+                cur_generation,
+                format_duration(elapsed_time),
+            )
+            return True
+        return False
+
+    def should_stop(self, cur_generation: int, elapsed_time: float) -> Tuple[bool, str]:
+        """
+        Evaluate all stopping criteria and determine if the algorithm should stop.
+
+        Args:
+            cur_generation: Current generation number
+            elapsed_time: Time elapsed since algorithm start (in seconds)
+
+        Returns:
+            Tuple of (should_stop: bool, reason: str)
+        """
+        # Check generation limit if duration is not set
+        if (
+            self.config.duration is None
+            and self.config.generations is not None
+            and cur_generation >= self.config.generations
+        ):
+            return True, f"Completed {cur_generation} generations"
+
+        # Check duration limit
+        if self.config.duration is not None and elapsed_time >= self.config.duration:
+            return True, f"Duration limit reached ({self.config.duration} seconds)"
+
+        # Check empty population
+        if len(self.population) == 0:
+            return True, "No more population found"
+
+        # Check fitness threshold
+        should_stop, reason = self.check_fitness_threshold()
+        if should_stop:
+            return True, reason
+
+        # Check generation saturation
+        should_stop, reason = self.check_generation_saturation()
+        if should_stop:
+            return True, reason
+
+        # Check exploration limit
+        should_stop, reason = self.check_exploration_limit()
+        if should_stop:
+            return True, reason
+
+        return False, ""
+
+    def check_fitness_threshold(self) -> Tuple[bool, str]:
+        """
+        Check if the best fitness score has reached or exceeded the configured threshold.
+
+        Returns:
+            Tuple of (should_stop: bool, reason: str)
+        """
+        threshold = self.config.stopping_criteria.fitness_threshold
+
+        if threshold is None or not self.best_of_generation:
+            return False, ""
+
+        best_fitness = self.best_of_generation[-1].fitness_result.fitness_score
+
+        if best_fitness >= threshold:
+            return (
+                True,
+                f"Fitness threshold reached (score: {best_fitness:.4f} >= threshold: {threshold})",
+            )
+
+        return False, ""
+
+    def check_generation_saturation(self) -> Tuple[bool, str]:
+        """
+        Check if the fitness score has not improved for the configured number of generations.
+        Note: This method only checks the counter value. Use update_saturation_tracking() to update it.
+
+        Returns:
+            Tuple of (should_stop: bool, reason: str)
+        """
+        saturation_limit = self.config.stopping_criteria.generation_saturation
+
+        if saturation_limit is None:
+            return False, ""
+
+        if self.saturation_stagnant_generations >= saturation_limit:
+            return (
+                True,
+                f"Generation saturation reached (no improvement for {saturation_limit} generations)",
+            )
+
+        return False, ""
+
+    def check_exploration_limit(self) -> Tuple[bool, str]:
+        """
+        Check if no new unique scenarios have been discovered for the configured number of generations.
+        This indicates that the exploration space has been exhausted.
+
+        Returns:
+            Tuple of (should_stop: bool, reason: str)
+        """
+        exploration_limit = self.config.stopping_criteria.exploration_saturation
+
+        if exploration_limit is None:
+            return False, ""
+
+        if self.exploration_stagnant_generations >= exploration_limit:
+            return (
+                True,
+                f"Exploration limit reached (no new scenarios for {exploration_limit} generations)",
+            )
+
+        return False, ""
+
+    def update_saturation_tracking(self):
+        """
+        Update the saturation tracking after each generation.
+        Called after fitness scores are calculated for a generation.
+        """
+        if self.config.stopping_criteria.generation_saturation is None:
+            return
+
+        if len(self.best_of_generation) < 2:
+            return
+
+        prev_best = self.best_of_generation[-2].fitness_result.fitness_score
+        curr_best = self.best_of_generation[-1].fitness_result.fitness_score
+
+        improvement = curr_best - prev_best
+        threshold = self.config.stopping_criteria.saturation_threshold
+        if improvement <= threshold:  # No significant improvement
+            self.saturation_stagnant_generations += 1
+            logger.debug(
+                "No improvement in fitness score | stagnant_generations=%d/%s",
+                self.saturation_stagnant_generations,
+                self.config.stopping_criteria.generation_saturation,
+            )
+        else:
+            self.saturation_stagnant_generations = 0
+            logger.debug(
+                "Fitness improved by %.4f, resetting saturation counter", improvement
+            )
+
+    def update_exploration_tracking(self):
+        """
+        Update the exploration tracking after each generation.
+        Checks if any new unique scenarios were discovered in this generation.
+        """
+        if self.config.stopping_criteria.exploration_saturation is None:
+            return
+
+        if self.new_scenarios_in_generation == 0:
+            self.exploration_stagnant_generations += 1
+            logger.debug(
+                "No new scenarios discovered | stagnant_generations=%d/%s",
+                self.exploration_stagnant_generations,
+                self.config.stopping_criteria.exploration_saturation,
+            )
+        else:
+            self.exploration_stagnant_generations = 0
+            logger.debug(
+                "Discovered %d new scenarios, resetting exploration counter",
+                self.new_scenarios_in_generation,
+            )
+
+        # Reset counter for next generation
+        self.new_scenarios_in_generation = 0
 
     def create_population(self, population_size) -> List[BaseScenario]:
         """Generate random population for algorithm"""
@@ -297,6 +494,10 @@ class GeneticAlgorithm:
             result = copy.deepcopy(result)
             result.generation_id = generation_id
             return result
+
+        # This is a new scenario - track it for exploration limit
+        self.new_scenarios_in_generation += 1
+
         scenario_result = self.krkn_client.run(scenario, generation_id)
 
         # Add scenario to seen population
@@ -480,11 +681,23 @@ class GeneticAlgorithm:
 
     def save(self):
         """Save run results"""
-        # TODO: Create a single result file (results.json) that contains summary of all the results
         self.generations_reporter.save_best_generations(self.best_of_generation)
         self.generations_reporter.save_best_generation_graph(self.best_of_generation)
         self.health_check_reporter.save_report(self.seen_population.values())
         self.health_check_reporter.sort_fitness_result_csv()
+
+        # Generate and save unified results summary
+        summary_reporter = JSONSummaryReporter(
+            run_uuid=self.run_uuid,
+            config=self.config,
+            seen_population=self.seen_population,
+            best_of_generation=self.best_of_generation,
+            start_time=self.start_time,
+            end_time=self.end_time,
+            completed_generations=self.completed_generations,
+            seed=self.seed,
+        )
+        summary_reporter.save(self.output_dir)
 
         # TODO: Send run summary to Elasticsearch
 

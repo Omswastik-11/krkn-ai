@@ -116,7 +116,11 @@ class TestPrometheusUtils:
     @patch("krkn_ai.utils.prometheus.KrknPrometheus")
     def test_create_client_connection_test_failure(self, mock_prom_class):
         """Should raise connection error if the connection test (process_query) fails."""
-        env = {"PROMETHEUS_URL": "http://localhost", "PROMETHEUS_TOKEN": "tok"}
+        env = {
+            "PROMETHEUS_URL": "http://localhost",
+            "PROMETHEUS_TOKEN": "tok",
+            "MOCK_FITNESS": "false",
+        }
         with patch.dict(os.environ, env):
             mock_client = Mock()
             mock_client.process_query.side_effect = Exception("Auth failed")
