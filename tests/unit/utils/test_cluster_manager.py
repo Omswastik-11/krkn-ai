@@ -173,10 +173,101 @@ class TestClusterManager:
         assert len(namespaces) == 2
         assert {ns.name for ns in namespaces} == {"default", "test-ns"}
 
-        # Test with pattern matching all (.* matches everything)
+        # Test with pattern matching all (.* matches everything as regex)
         namespaces = cluster_manager.list_namespaces(".*")
         assert len(namespaces) == 3
         assert {ns.name for ns in namespaces} == {"default", "kube-system", "test-ns"}
+
+    def test_list_namespaces_handles_none_empty_and_wildcard(
+        self, cluster_manager, mock_krkn_k8s
+    ):
+        """Test list_namespaces handles None/empty as 'none', '*' as 'all'"""
+        mock_krkn_k8s.list_namespaces.return_value = [
+            "default",
+            "kube-system",
+            "test-ns",
+        ]
+
+        # None should match none (explicit selection required)
+        namespaces = cluster_manager.list_namespaces(None)
+        assert len(namespaces) == 0
+
+        # Empty string should match none
+        namespaces = cluster_manager.list_namespaces("  ")
+        assert len(namespaces) == 0
+
+        # '*' wildcard should now match ALL namespaces
+        namespaces = cluster_manager.list_namespaces("*")
+        assert len(namespaces) == 3
+        assert {ns.name for ns in namespaces} == {"default", "kube-system", "test-ns"}
+
+    def test_list_namespaces_with_multiple_patterns(
+        self, cluster_manager, mock_krkn_k8s
+    ):
+        """Test list_namespaces works with comma-separated patterns"""
+        mock_krkn_k8s.list_namespaces.return_value = [
+            "default",
+            "kube-system",
+            "test-ns",
+            "prod-app",
+        ]
+
+        namespaces = cluster_manager.list_namespaces("default, prod-.*")
+        assert len(namespaces) == 2
+        assert {ns.name for ns in namespaces} == {"default", "prod-app"}
+
+    def test_list_namespaces_with_exclusion_pattern(
+        self, cluster_manager, mock_krkn_k8s
+    ):
+        """Test list_namespaces works with exclusion patterns"""
+        mock_krkn_k8s.list_namespaces.return_value = [
+            "default",
+            "kube-system",
+            "kube-public",
+            "test-ns",
+        ]
+
+        # Exclude kube-system only (implicit match all)
+        namespaces = cluster_manager.list_namespaces("!kube-system")
+        assert len(namespaces) == 3
+        assert {ns.name for ns in namespaces} == {"default", "kube-public", "test-ns"}
+
+    def test_list_namespaces_with_wildcard_and_exclusion(
+        self, cluster_manager, mock_krkn_k8s
+    ):
+        """Test list_namespaces with '*' wildcard and exclusion pattern"""
+        mock_krkn_k8s.list_namespaces.return_value = [
+            "default",
+            "kube-system",
+            "kube-public",
+            "test-ns",
+        ]
+
+        # Match all except kube-.*
+        namespaces = cluster_manager.list_namespaces("*,!kube-.*")
+        assert len(namespaces) == 2
+        assert {ns.name for ns in namespaces} == {"default", "test-ns"}
+
+    def test_list_namespaces_with_include_and_exclude(
+        self, cluster_manager, mock_krkn_k8s
+    ):
+        """Test list_namespaces with both include and exclude patterns"""
+        mock_krkn_k8s.list_namespaces.return_value = [
+            "openshift-monitoring",
+            "openshift-console",
+            "openshift-operators",
+            "default",
+        ]
+
+        # Include openshift-.* but exclude openshift-operators
+        namespaces = cluster_manager.list_namespaces(
+            "openshift-.*,!openshift-operators"
+        )
+        assert len(namespaces) == 2
+        assert {ns.name for ns in namespaces} == {
+            "openshift-monitoring",
+            "openshift-console",
+        }
 
     def test_list_pvcs_handles_exceptions_gracefully(self, cluster_manager):
         """Test list_pvcs returns empty list when exception occurs"""
@@ -215,8 +306,9 @@ class TestClusterManager:
         ]
 
         # Test filtering by label pattern and skipping by name pattern
+        # Note: skip_pod_name_patterns now accepts string patterns
         pods = cluster_manager.list_pods(
-            namespace, pod_labels_patterns="app", skip_pod_name_patterns=["skip-me"]
+            namespace, pod_labels_patterns="app", skip_pod_name_patterns="skip-me"
         )
 
         assert len(pods) == 1
