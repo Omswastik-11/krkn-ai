@@ -15,6 +15,7 @@ from krkn_ai.models.config import (
     HealthCheckApplicationConfig,
     OutputConfig,
     ClusterComponents,
+    StoppingCriteria,
 )
 from krkn_ai.models.cluster_components import Namespace, Node
 
@@ -187,3 +188,57 @@ class TestOutputConfig:
         )
         assert "%g" in config.result_name_fmt
         assert "%s" in config.result_name_fmt
+
+
+class TestStoppingCriteria:
+    """Test StoppingCriteria model"""
+
+    def test_stopping_criteria_defaults(self):
+        """Test StoppingCriteria default values"""
+        criteria = StoppingCriteria()
+        assert criteria.fitness_threshold is None
+        assert criteria.generation_saturation is None
+
+    def test_stopping_criteria_with_fitness_threshold(self):
+        """Test StoppingCriteria with fitness_threshold set"""
+        criteria = StoppingCriteria(fitness_threshold=100.0)
+        assert criteria.fitness_threshold == 100.0
+        assert criteria.generation_saturation is None
+
+    def test_stopping_criteria_with_generation_saturation(self):
+        """Test StoppingCriteria with generation_saturation set"""
+        criteria = StoppingCriteria(generation_saturation=5)
+        assert criteria.fitness_threshold is None
+        assert criteria.generation_saturation == 5
+
+    def test_stopping_criteria_with_all_fields(self):
+        """Test StoppingCriteria with all fields set"""
+        criteria = StoppingCriteria(fitness_threshold=200.0, generation_saturation=10)
+        assert criteria.fitness_threshold == 200.0
+        assert criteria.generation_saturation == 10
+
+    def test_config_file_includes_stopping_criteria(self):
+        """Test that ConfigFile includes stopping_criteria field"""
+        cluster = ClusterComponents(namespaces=[], nodes=[])
+        config = ConfigFile(
+            kubeconfig_file_path="/path/to/kubeconfig",
+            fitness_function=FitnessFunction(query="test_query"),
+            cluster_components=cluster,
+            stopping_criteria=StoppingCriteria(
+                fitness_threshold=150.0, generation_saturation=3
+            ),
+        )
+        assert config.stopping_criteria.fitness_threshold == 150.0
+        assert config.stopping_criteria.generation_saturation == 3
+
+    def test_config_file_stopping_criteria_default(self):
+        """Test that ConfigFile has default StoppingCriteria"""
+        cluster = ClusterComponents(namespaces=[], nodes=[])
+        config = ConfigFile(
+            kubeconfig_file_path="/path/to/kubeconfig",
+            fitness_function=FitnessFunction(query="test_query"),
+            cluster_components=cluster,
+        )
+        assert isinstance(config.stopping_criteria, StoppingCriteria)
+        assert config.stopping_criteria.fitness_threshold is None
+        assert config.stopping_criteria.generation_saturation is None

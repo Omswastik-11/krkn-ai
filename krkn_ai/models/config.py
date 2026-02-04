@@ -203,6 +203,45 @@ class AdaptiveMutation(BaseModel):
     generations: int = 5
 
 
+class StoppingCriteria(BaseModel):
+    """
+    Configuration for stopping criteria that control when the genetic algorithm terminates.
+
+    Multiple criteria can be set simultaneously - the algorithm stops when ANY criterion is met.
+
+    Attributes:
+        fitness_threshold: Stop when best fitness score reaches or exceeds this value.
+            Set to None to disable this criterion.
+        generation_saturation: Stop if the best fitness score does not improve for this
+            many consecutive generations. Set to None to disable this criterion.
+        exploration_saturation: Stop if no new unique scenarios are discovered for this
+            many consecutive generations (limit of exploration reached).
+            Set to None to disable this criterion.
+    """
+
+    fitness_threshold: Optional[float] = None  # Stop when fitness score >= threshold
+    generation_saturation: Optional[int] = (
+        None  # Stop if no improvement for N generations
+    )
+    exploration_saturation: Optional[int] = (
+        None  # Stop if no new scenarios for N generations
+    )
+    saturation_threshold: float = (
+        0.0001  # Minimum improvement threshold for generation saturation
+    )
+
+    @field_validator("generation_saturation", "exploration_saturation", mode="after")
+    @classmethod
+    def validate_positive_int(cls, value: Optional[int], info) -> Optional[int]:
+        if value is not None and value <= 0:
+            field_name = info.field_name
+            raise ValueError(
+                f"{field_name} must be a positive integer greater than 0. "
+                f"Please check the '{field_name}' parameter in your krkn-ai config file."
+            )
+        return value
+
+
 class ConfigFile(BaseModel):
     kubeconfig_file_path: str  # Path to kubeconfig
     parameters: Dict[str, str] = {}
@@ -231,8 +270,8 @@ class ConfigFile(BaseModel):
         const.CROSSOVER_RATE
     )  # How often crossover should occur for each scenario parameter (0.0-1.0)
     composition_rate: float = (
-        const.CROSSOVER_COMPOSITION_RATE
-    )  # How often a crossover would lead to composition (0.0-1.0)
+        0  # How often a crossover would lead to composition (0.0-1.0)
+    )
 
     population_injection_rate: float = (
         const.POPULATION_INJECTION_RATE
@@ -255,3 +294,7 @@ class ConfigFile(BaseModel):
     cluster_components: ClusterComponents
 
     adaptive_mutation: AdaptiveMutation = AdaptiveMutation()
+
+    stopping_criteria: StoppingCriteria = (
+        StoppingCriteria()
+    )  # Additional stopping criteria for the algorithm
