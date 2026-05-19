@@ -1,0 +1,179 @@
+{
+  "timestamp": "2026-05-19T07:56:11.310318+00:00",
+  "kubeconfig": "C:\\Users\\omswa\\.kube\\config",
+  "discovery": {
+    "namespaces": [
+      "default",
+      "demo-app",
+      "kube-node-lease",
+      "kube-public",
+      "kube-system",
+      "local-path-storage"
+    ],
+    "namespace_count": 6,
+    "total_pods": 12,
+    "total_services": 4,
+    "total_pvcs": 0,
+    "total_vmis": 0,
+    "nodes": [
+      "krkn-test-control-plane"
+    ],
+    "node_count": 1,
+    "node_interfaces": {
+      "krkn-test-control-plane": []
+    }
+  },
+  "scenario_selection": {
+    "flags": {
+      "pod-scenarios": true,
+      "container-scenarios": false,
+      "application-outages": true,
+      "node-cpu-hog": true,
+      "node-memory-hog": true,
+      "node-io-hog": true,
+      "time-scenarios": true,
+      "network-scenarios": false,
+      "dns-outage": true,
+      "syn-flood": false,
+      "pvc-scenarios": false,
+      "kubevirt-scenarios": false
+    },
+    "enabled_count": 7,
+    "disabled_count": 5
+  },
+  "endpoint_probing": {
+    "total_urls": 7,
+    "results": {
+      "http://kubernetes.default.svc.cluster.local:443/": false,
+      "https://kubernetes.default.svc.cluster.local:443/healthz": false,
+      "http://api.demo-app.svc.cluster.local:8080/": false,
+      "http://kube-dns.kube-system.svc.cluster.local:53/": false,
+      "http://kube-dns.kube-system.svc.cluster.local:9153/": false,
+      "http://web.demo-app.svc.cluster.local:80/": false
+    }
+  },
+  "per_namespace_detail": [
+    {
+      "name": "default",
+      "pods": [],
+      "services": [
+        {
+          "name": "kubernetes",
+          "ports": [
+            443
+          ]
+        }
+      ],
+      "pvcs": [],
+      "vmis": []
+    },
+    {
+      "name": "demo-app",
+      "pods": [
+        {
+          "name": "api-5584c855f8-sv6k8",
+          "containers": 1
+        },
+        {
+          "name": "web-cbfbbd684-r7ndq",
+          "containers": 1
+        },
+        {
+          "name": "web-cbfbbd684-wj2ls",
+          "containers": 1
+        }
+      ],
+      "services": [
+        {
+          "name": "api",
+          "ports": [
+            8080
+          ]
+        },
+        {
+          "name": "web",
+          "ports": [
+            80
+          ]
+        }
+      ],
+      "pvcs": [],
+      "vmis": []
+    },
+    {
+      "name": "kube-node-lease",
+      "pods": [],
+      "services": [],
+      "pvcs": [],
+      "vmis": []
+    },
+    {
+      "name": "kube-public",
+      "pods": [],
+      "services": [],
+      "pvcs": [],
+      "vmis": []
+    },
+    {
+      "name": "kube-system",
+      "pods": [
+        {
+          "name": "coredns-7c65d6cfc9-cc5qf",
+          "containers": 1
+        },
+        {
+          "name": "coredns-7c65d6cfc9-kd6sm",
+          "containers": 1
+        },
+        {
+          "name": "etcd-krkn-test-control-plane",
+          "containers": 1
+        },
+        {
+          "name": "kindnet-958n4",
+          "containers": 1
+        },
+        {
+          "name": "kube-apiserver-krkn-test-control-plane",
+          "containers": 1
+        },
+        {
+          "name": "kube-controller-manager-krkn-test-control-plane",
+          "containers": 1
+        },
+        {
+          "name": "kube-proxy-2fmsz",
+          "containers": 1
+        },
+        {
+          "name": "kube-scheduler-krkn-test-control-plane",
+          "containers": 1
+        }
+      ],
+      "services": [
+        {
+          "name": "kube-dns",
+          "ports": [
+            53,
+            53,
+            9153
+          ]
+        }
+      ],
+      "pvcs": [],
+      "vmis": []
+    },
+    {
+      "name": "local-path-storage",
+      "pods": [
+        {
+          "name": "local-path-provisioner-57c5987fd4-74p6n",
+          "containers": 1
+        }
+      ],
+      "services": [],
+      "pvcs": [],
+      "vmis": []
+    }
+  ]
+}
